@@ -4,13 +4,13 @@ Task Lifecycle Demo
 
 This script demonstrates the complete lifecycle of a task in the Hotlabel platform:
 1. Provider registers and receives API key
-2. Provider creates a task
-3. Publisher registers and receives API key
-4. Publisher receives auto-assigned task
-5. Publisher submits result for task
-6. QA service receives task result and validates it
-7. Final result is appended to task and is made available to provider
-8. Test consensus calculation and notification system
+2. Provider creates multiple tasks with different configurations
+3. Multiple publishers register and receive API keys
+4. Publishers receive auto-assigned tasks
+5. Publishers submit results with different patterns
+6. QA service validates results and calculates consensus
+7. Final results are made available to providers
+8. Test various consensus scenarios and edge cases
 9. Track publisher sessions and their contributions
 """
 
@@ -24,6 +24,7 @@ import sys
 import random
 import os
 import subprocess
+from enum import Enum
 
 # Configuration
 KONG_URL = "http://localhost:8000"  # API Gateway URL
@@ -43,6 +44,14 @@ USERS_SERVICE_URL = "http://localhost:8005"
 VALIDATION_URL = f"{QA_SERVICE_URL}/api/v1/validation"
 METRICS_URL = f"{QA_SERVICE_URL}/api/v1/metrics"
 QA_API_KEY = "test_api_key_qa_service"  # QA service API key
+
+class TaskScenario(Enum):
+    HIGH_AGREEMENT = "high_agreement"
+    MEDIUM_AGREEMENT = "medium_agreement"
+    LOW_AGREEMENT = "low_agreement"
+    HIGH_CONFIDENCE = "high_confidence"
+    MIXED_CONFIDENCE = "mixed_confidence"
+    EDGE_CASE = "edge_case"
 
 def print_header(title: str) -> None:
     """Print a formatted header"""
@@ -64,22 +73,18 @@ def print_response(response: requests.Response, title: str) -> None:
         print(f"Raw response text: {response.text}")
     print("-" * 50)
 
-
 class TaskLifecycle:
     """Class to manage the task lifecycle demonstration"""
     
     def __init__(self):
         self.provider_id = None
         self.provider_api_key = None
-        self.task_id = None
-        self.publisher_id = None
-        self.publisher_api_key = None
-        self.result_id = None
-        self.validation_id = None
-        self.validator_id = None
-        self.publisher_ids = []  # Store multiple publisher IDs for consensus testing
-        self.publisher_api_keys = []  # Store multiple publisher API keys
-        self.session_ids = []  # Store session IDs
+        self.task_ids = []  # List of task IDs for different scenarios
+        self.publisher_ids = []
+        self.publisher_api_keys = []
+        self.sessions = {}  # Map publisher_id to list of session IDs
+        self.session_data = {}  # Map session_id to session metadata
+        self.scenario_results = {}  # Map task_id to scenario type
         
     def register_provider(self) -> Dict[str, Any]:
         """Register a new provider"""
@@ -108,14 +113,15 @@ class TaskLifecycle:
         print(f"Provider API Key: {self.provider_api_key}")
         
         return result
+
+    def create_task_for_scenario(self, scenario: TaskScenario) -> Dict[str, Any]:
+        """Create a task with configuration based on the scenario"""
+        print_step(f"Creating task for scenario: {scenario.value}")
         
-    def create_task_with_consensus_config(self) -> Dict[str, Any]:
-        """Create a new task with consensus configuration"""
-        print_step("STEP 2: Provider creates a task with consensus config")
-        
+        # Base task configuration
         task_data = {
-            "title": "Demo Text Classification Task with Consensus",
-            "description": "A demo task for testing consensus and notifications",
+            "title": f"Demo Task - {scenario.value}",
+            "description": f"A demo task for testing {scenario.value} scenario",
             "provider_id": self.provider_id,
             "task_type": "text_classification",
             "content": {
@@ -125,21 +131,51 @@ class TaskLifecycle:
             "language": "en",
             "category": "demo",
             "complexity_level": 2,
-            "tags": ["demo", "classification", "consensus"],
+            "tags": ["demo", "classification", "consensus", scenario.value],
             "options": {"demo_option": True},
             "time_estimate_seconds": 120,
             "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
             "status": "pending",
-            # Consensus configuration
-            "agreement_threshold": 0.75,  # 75% agreement required
-            "confidence_threshold": 0.70,  # 70% confidence required
-            "consensus_status": "pending",  # Initial consensus status
-            "consensus_data": {  # Initial consensus data structure
-                "total_submissions": 0,
-                "agreement_count": 0,
-                "confidence_scores": [],
-                "current_consensus": None
-            }
+        }
+
+        # Configure consensus parameters based on scenario
+        if scenario == TaskScenario.HIGH_AGREEMENT:
+            task_data.update({
+                "agreement_threshold": 0.7,  # 70% agreement required
+                "confidence_threshold": 0.6,  # 60% confidence required
+            })
+        elif scenario == TaskScenario.MEDIUM_AGREEMENT:
+            task_data.update({
+                "agreement_threshold": 0.5,  # 50% agreement required
+                "confidence_threshold": 0.6,  # 60% confidence required
+            })
+        elif scenario == TaskScenario.LOW_AGREEMENT:
+            task_data.update({
+                "agreement_threshold": 0.3,  # 30% agreement required
+                "confidence_threshold": 0.6,  # 60% confidence required
+            })
+        elif scenario == TaskScenario.HIGH_CONFIDENCE:
+            task_data.update({
+                "agreement_threshold": 0.5,  # 50% agreement required
+                "confidence_threshold": 0.8,  # 80% confidence required
+            })
+        elif scenario == TaskScenario.MIXED_CONFIDENCE:
+            task_data.update({
+                "agreement_threshold": 0.5,  # 50% agreement required
+                "confidence_threshold": 0.6,  # 60% confidence required
+            })
+        elif scenario == TaskScenario.EDGE_CASE:
+            task_data.update({
+                "agreement_threshold": 0.5,  # 50% agreement required
+                "confidence_threshold": 0.6,  # 60% confidence required
+            })
+
+        # Add consensus data structure
+        task_data["consensus_data"] = {
+            "total_submissions": 0,
+            "agreement_count": 0,
+            "confidence_scores": [],
+            "current_consensus": None
         }
         
         print("Task Creation Payload:")
@@ -147,21 +183,33 @@ class TaskLifecycle:
         
         headers = {"X-API-Key": self.provider_api_key}
         response = requests.post(TASKS_API_URL, json=task_data, headers=headers)
-        print_response(response, "Task Creation with Consensus Config")
+        print_response(response, f"Task Creation for {scenario.value}")
         
         if response.status_code >= 300:
-            print("ERROR: Failed to create task")
-            sys.exit(1)
+            print(f"ERROR: Failed to create task for {scenario.value}")
+            return None
             
         result = response.json()
-        self.task_id = str(result["id"])
+        task_id = str(result["id"])
+        self.task_ids.append(task_id)
+        self.scenario_results[task_id] = scenario
         
-        print(f"Task created successfully!")
-        print(f"Task ID: {self.task_id}")
+        print(f"Task created successfully for {scenario.value}!")
+        print(f"Task ID: {task_id}")
         
         return result
-        
-    def register_multiple_publishers(self, count: int = 3) -> List[Dict[str, Any]]:
+
+    def create_tasks_for_all_scenarios(self) -> List[Dict[str, Any]]:
+        """Create tasks for all scenarios"""
+        print_step("STEP 2: Creating tasks for all scenarios")
+        tasks = []
+        for scenario in TaskScenario:
+            task = self.create_task_for_scenario(scenario)
+            if task:
+                tasks.append(task)
+        return tasks
+
+    def register_multiple_publishers(self, count: int = 12) -> List[Dict[str, Any]]:
         """Register multiple publishers for consensus testing"""
         print_step(f"STEP 3: Register {count} publishers for consensus testing")
         
@@ -191,40 +239,39 @@ class TaskLifecycle:
             print(f"Publisher API Key: {result['api_key']}")
         
         return publishers
-        
-    def create_sessions_for_publishers(self) -> List[Dict[str, Any]]:
-        """Create sessions for each publisher"""
-        print_step("STEP 4: Create sessions for publishers")
-        
-        sessions = []
-        for i, publisher_id in enumerate(self.publisher_ids):
-            session_data = {
-                "publisher_id": publisher_id,
-                "device_info": {
-                    "platform": "web",
-                    "browser": "chrome",
-                    "version": "120.0.0"
-                },
-                "ip_address": "127.0.0.1",
-                "user_agent": "Mozilla/5.0 (Demo Browser)"
-            }
-            
-            response = requests.post(SESSIONS_API_URL, json=session_data)
-            print_response(response, f"Session Creation for Publisher {i+1}")
-            
-            if response.status_code >= 300:
-                print(f"ERROR: Failed to create session for publisher {i+1}")
-                continue
-                
-            result = response.json()
-            self.session_ids.append(result["id"])
-            sessions.append(result)
-            
-            print(f"Session created successfully for Publisher {i+1}!")
-            print(f"Session ID: {result['id']}")
-        
-        return sessions
-    
+
+    def create_sessions_for_publishers(self, sessions_per_publisher: int = 2) -> Dict[str, List[str]]:
+        """Create multiple sessions for each publisher."""
+        print_step("STEP 4: Create multiple sessions for publishers")
+        for publisher_id in self.publisher_ids:
+            self.sessions[publisher_id] = []
+            for i in range(sessions_per_publisher):
+                session_data = {
+                    "publisher_id": publisher_id,
+                    "device_info": {
+                        "platform": "web",
+                        "browser": "chrome",
+                        "version": "120.0.0"
+                    },
+                    "ip_address": "127.0.0.1",
+                    "user_agent": "Mozilla/5.0 (Demo Browser)"
+                }
+                response = requests.post(SESSIONS_API_URL, json=session_data)
+                print_response(response, f"Session Creation for Publisher {publisher_id} - Session {i+1}")
+                if response.status_code >= 300:
+                    print(f"ERROR: Failed to create session for publisher {publisher_id} - Session {i+1}")
+                    continue
+                result = response.json()
+                self.sessions[publisher_id].append(result["id"])
+                # Store session metadata
+                self.session_data[result["id"]] = {
+                    "created_at": result.get("created_at"),
+                    "updated_at": result.get("updated_at")
+                }
+                print(f"Session created successfully for Publisher {publisher_id} - Session {i+1}!")
+                print(f"Session ID: {result['id']}")
+        return self.sessions
+
     def get_assignments_for_task(self, task_id: str, headers: dict) -> List[Dict[str, Any]]:
         """Get all assignments for a task"""
         response = requests.get(
@@ -234,157 +281,169 @@ class TaskLifecycle:
         if response.status_code == 200:
             return response.json()
         return []
-    
-    def submit_multiple_results(self) -> List[Dict[str, Any]]:
-        """Submit results from multiple publishers for consensus testing"""
-        print_step("STEP 5: Multiple publishers submit results for consensus")
-        
-        results = []
-        labels = ["positive", "negative", "neutral"]
-        
-        for i, (publisher_id, api_key, session_id) in enumerate(zip(
-            self.publisher_ids, 
-            self.publisher_api_keys,
-            self.session_ids
-        )):
-            try:
-                # Set up headers with API key
-                headers = {
-                    "X-API-Key": api_key, 
-                    "Content-Type": "application/json"
-                }
-                
-                # Simulate different confidence levels and labels
-                label = random.choice(["positive", "negative", "neutral"])
-                confidence = random.uniform(0.8, 0.95)
-                time_spent = random.randint(3000, 10000)
-                
-                # Prepare task result payload - using 'result' to match the TaskResult model
-                result_data = {
-                    "label": f"label_{i+1}",
-                    "confidence": 0.9 - (i * 0.1),  # Vary confidence slightly
-                    "time_spent_ms": 2000 + (i * 100)  # Vary time spent
-                }
-                
-                result_payload = {
-                    "publisher_id": str(publisher_id),
-                    "result": result_data,  # Main result data
-                    "session_id": str(session_id),
-                    "quality_score": float(0.9 - (i * 0.1)),  # Ensure it's a float
-                    "result_metadata": {  # Changed from metadata to result_metadata
-                        "source": "demo_script",
-                        "time_spent_ms": 2000 + (i * 100)
-                    },
-                    "confidence": float(0.9 - (i * 0.1)),  # Confidence at top level
-                    "labels": [f"label_{i+1}"]  # Labels for classification
-                }
-                
-                # Log the request payload for debugging
-                print(f"\nSubmitting result for publisher {i+1} (ID: {publisher_id}):")
-                print("Request URL:", f"{TASKS_API_URL}/{self.task_id}/result")
-                print("Headers:", headers)
-                print("Payload:", json.dumps(result_payload, indent=2))
-                
-                try:
-                    # Submit the result using the task result endpoint
-                    response = requests.post(
-                        f"{TASKS_API_URL}/{self.task_id}/result",
-                        json=result_payload,
-                        headers=headers,
-                        timeout=10  # Add timeout to prevent hanging
-                    )
-                    
-                    print_response(response, f"Result Submission for Publisher {i+1}")
-                    
-                    # Log the full response for debugging
-                    print("Full response:", response.text)
-                    
-                    if response.status_code >= 300:
-                        print(f"ERROR: Failed to submit result for publisher {i+1}")
-                        print(f"Status Code: {response.status_code}")
-                        # Try to get more detailed error information
-                        try:
-                            error_details = response.json()
-                            print("Error details:", json.dumps(error_details, indent=2))
-                        except:
-                            print("Response text:", response.text)
-                        continue
-                        
-                except requests.exceptions.RequestException as e:
-                    print(f"ERROR: Request failed for publisher {i+1}")
-                    print(f"Exception: {str(e)}")
-                    continue
-                    
-                try:
-                    result = response.json()
-                    results.append(result)
-                    print(f"Result submitted successfully for Publisher {i+1}!")
-                    print(f"Result ID: {result.get('id', 'N/A')}")
-                    print(f"- Task: {result.get('task_id')}")
-                    print(f"  Result: {result.get('result')}")
-                    print(f"  Confidence: {result.get('confidence')}")
-                    print(f"  Labels: {result.get('labels')}")
-                    print(f"  Quality Score: {result.get('quality_score')}")
-                except Exception as e:
-                    print(f"ERROR: Failed to parse response for publisher {i+1}: {str(e)}")
-                    print(f"Response: {response.text}")
-                
-                # Add a small delay between submissions
-                time.sleep(1)
-                
-            except Exception as e:
-                print(f"ERROR: Exception occurred for publisher {i+1}: {str(e)}")
-                import traceback
-                traceback.print_exc()
-        
-        return results
-    
-    def check_consensus_status(self) -> Dict[str, Any]:
-        """Check task consensus status"""
-        print_step("STEP 6: Check task consensus status")
-        try:
-            headers = {"X-API-Key": self.provider_api_key}
-            response = requests.get(f"{QA_SERVICE_URL}/api/v1/consensus/{self.task_id}", headers=headers)
-            if response.status_code == 200:
-                print_response(response, "Task Consensus Status")
+
+    def generate_result_for_scenario(self, scenario: TaskScenario, publisher_index: int) -> Dict[str, Any]:
+        """Generate a result based on the scenario"""
+        if scenario == TaskScenario.HIGH_AGREEMENT:
+            # All publishers submit the same label with high confidence
+            label = "positive"
+            confidence = random.uniform(0.85, 0.95)
+        elif scenario == TaskScenario.MEDIUM_AGREEMENT:
+            # 70% of publishers submit the same label
+            label = "positive" if publisher_index < 8 else "negative"
+            confidence = random.uniform(0.7, 0.9)
+        elif scenario == TaskScenario.LOW_AGREEMENT:
+            # Random labels with medium confidence
+            label = random.choice(["positive", "negative", "neutral"])
+            confidence = random.uniform(0.6, 0.8)
+        elif scenario == TaskScenario.HIGH_CONFIDENCE:
+            # All publishers submit with high confidence
+            label = random.choice(["positive", "negative", "neutral"])
+            confidence = random.uniform(0.9, 0.95)
+        elif scenario == TaskScenario.MIXED_CONFIDENCE:
+            # Mixed confidence levels
+            label = "positive" if publisher_index < 6 else "negative"
+            confidence = random.uniform(0.6, 0.95)
+        else:  # EDGE_CASE
+            # Edge cases: very low confidence, invalid labels, etc.
+            if publisher_index % 3 == 0:
+                label = "invalid_label"
+                confidence = 0.3
             else:
-                print("ERROR: Failed to retrieve consensus status")
-        except Exception as e:
-            print(f"Error checking consensus status: {str(e)}")
-    
-    def check_publisher_contributions(self) -> None:
-        """Check contributions made by each publisher"""
-        print_step("STEP 7: Check publisher contributions")
+                label = "positive"
+                confidence = random.uniform(0.6, 0.8)
+
+        return {
+            "label": label,
+            "confidence": confidence,
+            "time_spent_ms": random.randint(3000, 10000)
+        }
+
+    def submit_results_for_scenario(self, task_id: str, results_per_session: int = 2) -> List[Dict[str, Any]]:
+        """Submit results for a specific task based on its scenario"""
+        print_step(f"STEP 5: Submitting results for task {task_id} ({self.scenario_results[task_id].value})")
+        results = []
+        scenario = self.scenario_results[task_id]
+
+        for publisher_index, (publisher_id, api_key) in enumerate(zip(self.publisher_ids, self.publisher_api_keys)):
+            for session_id in self.sessions[publisher_id]:
+                for i in range(results_per_session):
+                    headers = {
+                        "X-API-Key": api_key,
+                        "Content-Type": "application/json"
+                    }
+
+                    result_data = self.generate_result_for_scenario(scenario, publisher_index)
+                    
+                    result_payload = {
+                        "publisher_id": str(publisher_id),
+                        "result": result_data,
+                        "session_id": str(session_id),
+                        "quality_score": float(result_data["confidence"]),
+                        "result_metadata": {
+                            "source": "demo_script",
+                            "time_spent_ms": result_data["time_spent_ms"]
+                        },
+                        "confidence": float(result_data["confidence"]),
+                        "labels": [result_data["label"]]
+                    }
+
+                    print(f"\nSubmitting result for publisher {publisher_id} - Session {session_id} - Result {i+1}:")
+                    print("Request URL:", f"{TASKS_API_URL}/{task_id}/result")
+                    print("Headers:", headers)
+                    print("Payload:", json.dumps(result_payload, indent=2))
+
+                    try:
+                        response = requests.post(
+                            f"{TASKS_API_URL}/{task_id}/result",
+                            json=result_payload,
+                            headers=headers,
+                            timeout=10
+                        )
+                        print_response(response, f"Result Submission for Publisher {publisher_id} - Session {session_id} - Result {i+1}")
+                        
+                        if response.status_code >= 300:
+                            print(f"ERROR: Failed to submit result for publisher {publisher_id} - Session {session_id} - Result {i+1}")
+                            print(f"Status Code: {response.status_code}")
+                            try:
+                                error_details = response.json()
+                                print("Error details:", json.dumps(error_details, indent=2))
+                            except:
+                                print("Response text:", response.text)
+                            continue
+
+                        result = response.json()
+                        results.append(result)
+                        print(f"Result submitted successfully!")
+                        print(f"Result ID: {result.get('id', 'N/A')}")
+                        print(f"- Task: {result.get('task_id')}")
+                        print(f"  Result: {result.get('result')}")
+                        print(f"  Confidence: {result.get('confidence')}")
+                        print(f"  Labels: {result.get('labels')}")
+                        print(f"  Quality Score: {result.get('quality_score')}")
+
+                    except requests.exceptions.RequestException as e:
+                        print(f"ERROR: Request failed for publisher {publisher_id} - Session {session_id} - Result {i+1}")
+                        print(f"Exception: {str(e)}")
+                        continue
+
+                    time.sleep(1)  # Small delay between submissions
+
+        return results
+
+    def check_consensus_status(self) -> Dict[str, Any]:
+        """Check consensus status for all tasks"""
+        print_step("STEP 6: Check consensus status for all tasks")
+        consensus_data = {}
+        for task_id in self.task_ids:
+            try:
+                headers = {"X-API-Key": self.provider_api_key}
+                response = requests.get(f"{QA_API_URL}/{task_id}", headers=headers)
+                if response.status_code == 200:
+                    print_response(response, f"Task {task_id} Consensus Status")
+                    consensus_data[task_id] = response.json()
+                else:
+                    print(f"ERROR: Failed to retrieve consensus status for task {task_id}")
+            except Exception as e:
+                print(f"Error checking consensus status for task {task_id}: {str(e)}")
+        return consensus_data
+
+    def check_publisher_contributions(self):
+        """Check publisher contributions and session statistics."""
+        print("\n--- STEP 7: Check publisher contributions ---")
         
-        for i, (publisher_id, session_id) in enumerate(zip(self.publisher_ids, self.session_ids)):
-            print(f"\nPublisher {i+1} Contributions:")
-            print(f"Publisher ID: {publisher_id}")
-            print(f"Session ID: {session_id}")
+        for publisher_id in self.publisher_ids:
+            print(f"\nChecking contributions for Publisher {publisher_id}")
             
-            # Get publisher's session details
-            response = requests.get(f"{SESSIONS_API_URL}/{session_id}")
-            if response.status_code == 200:
-                session_data = response.json()
-                print(f"Session Duration: {session_data.get('duration_ms', 'N/A')}ms")
-                print(f"Session Start: {session_data.get('started_at', 'N/A')}")
-                print(f"Session End: {session_data.get('ended_at', 'N/A')}")
+            # Get session statistics
+            for session_id in self.sessions[publisher_id]:
+                print(f"\nSession {session_id} Statistics:")
+                print(f"Created at: {self.session_data[session_id]['created_at']}")
+                print(f"Updated at: {self.session_data[session_id]['updated_at']}")
             
-            # Get publisher's results
-            headers = {"X-API-Key": self.publisher_api_keys[i]}
+            # Get publisher task contributions
+            publisher_index = self.publisher_ids.index(publisher_id)
+            publisher_api_key = self.publisher_api_keys[publisher_index]
+            
             response = requests.get(
-                f"{TASKS_API_URL}/results?session_id={session_id}",
-                headers=headers
+                f"{PUBLISHERS_API_URL}/{publisher_id}/tasks",
+                headers={"X-API-Key": publisher_api_key}
             )
+            
             if response.status_code == 200:
-                results = response.json().get('items', [])
-                filtered_results = [r for r in results if r.get('session_id') == session_id]
-                print(f"Total Results: {len(filtered_results)}")
-                for result in filtered_results:
-                    print(f"- Task: {result.get('task_id')}")
-                    print(f"  Result: {result.get('result')}")
-                    print(f"  Confidence: {result.get('confidence')}")
-                    print(f"  Labels: {result.get('labels')}")
-                    print(f"  Quality Score: {result.get('quality_score')}")
+                tasks = response.json()
+                print(f"\nTotal tasks completed: {len(tasks)}")
+                
+                for task in tasks:
+                    print(f"\nTask {task['id']}:")
+                    print(f"Status: {task.get('status', 'N/A')}")
+                    print(f"Result: {task.get('result', 'N/A')}")
+                    print(f"Confidence: {task.get('confidence', 'N/A')}")
+                    print(f"Labels: {task.get('labels', 'N/A')}")
+                    print(f"Quality Score: {task.get('quality_score', 'N/A')}")
+            else:
+                print(f"Error getting publisher tasks: {response.status_code}")
+                print(response.text)
 
 def main():
     """Run the task lifecycle demonstration"""
@@ -395,17 +454,18 @@ def main():
     # Register provider
     lifecycle.register_provider()
     
-    # Create task with consensus config
-    lifecycle.create_task_with_consensus_config()
+    # Create tasks for all scenarios
+    lifecycle.create_tasks_for_all_scenarios()
     
     # Register multiple publishers
-    lifecycle.register_multiple_publishers(count=3)
+    lifecycle.register_multiple_publishers(count=12)
     
     # Create sessions for publishers
     lifecycle.create_sessions_for_publishers()
     
-    # Submit results from multiple publishers
-    lifecycle.submit_multiple_results()
+    # Submit results for each task
+    for task_id in lifecycle.task_ids:
+        lifecycle.submit_results_for_scenario(task_id)
     
     # Wait for consensus calculation
     print("\nWaiting for consensus calculation...")
