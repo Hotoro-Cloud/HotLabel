@@ -85,8 +85,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      tasks:
-        condition: service_started
     volumes:
       - ../hotlabel-publishers:/app
     networks:
@@ -105,6 +103,9 @@ services:
       - SERVICE_NAME=hotlabel-tasks
       - SERVICE_PORT=8002
       - LOG_LEVEL=info
+      - QA_SERVICE_URL=http://qa:8003
+      - PUBLISHER_SERVICE_URL=http://publishers:8004
+      - USERS_SERVICE_URL=http://users:8005
     ports:
       - "8002:8002"
     depends_on:
@@ -112,6 +113,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      qa:
+        condition: service_started
+      users:
+        condition: service_started
     volumes:
       - ../hotlabel-tasks:/app
     networks:
@@ -130,6 +135,8 @@ services:
       - SERVICE_NAME=hotlabel-qa
       - SERVICE_PORT=8003
       - LOG_LEVEL=info
+      - TASK_SERVICE_URL=http://tasks:8002/api/v1
+      - USER_SERVICE_URL=http://users:8005/api/v1
     ports:
       - "8003:8003"
     depends_on:
