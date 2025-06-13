@@ -1,0 +1,69 @@
+This is to understand the Hotlabel platform architecture across all services. 
+
+Core Services:
+    hotlabel-tasks: Manages task lifecycle, assignments, and results
+    hotlabel-users: Handles user authentication and management
+    hotlabel-publishers: Manages publisher profiles and assignments
+    hotlabel-qa: Handles quality assurance and consensus calculation
+    hotlabel-infra: Contains infrastructure setup and orchestration
+
+Service Interactions:
+
+   [Provider] → [Tasks Service] → [Publishers Service]
+        ↑            ↓                ↓
+        └────────────┴───────────────┘
+                     ↓
+              [QA Service]
+
+Key Components:
+    Tasks Service:
+        Task creation and management
+        Task assignment to publishers
+        Result collection and consensus
+        Task status tracking
+    Users Service:
+        User authentication
+        Provider and publisher registration
+        API key management
+        Role-based access control
+    Publishers Service:
+        Publisher profiles
+        Task availability
+        Session management
+        Performance tracking
+    QA Service:
+        Result validation
+        Consensus calculation
+        Quality metrics
+        Performance monitoring
+    Infrastructure:
+        Docker containerization
+        Kong API Gateway
+        PostgreSQL databases
+        Prometheus/Grafana monitoring
+
+Data Flow:
+   1. Provider creates task
+   2. Task is assigned to publishers
+   3. Publishers submit results
+   4. QA service validates results
+   5. Consensus is calculated
+   6. Final result is returned to provider
+
+Development Workflow:
+    Use hotlabel-infra/docker-compose-local.yml for local development
+    Run migrations from hotlabel-infra using the local compose file
+    Use hotlabel-infra/scripts/task_lifecycle_demo.py for testing
+    Always use the venv in hotlabel-infra for running demos
+
+Key Files:
+    docker-compose-local.yml: Local development setup
+    task_lifecycle_demo.py: End-to-end testing script
+    alembic.ini: Database migration configuration
+    requirements.txt: Service dependencies
+    
+Testing:
+    Each service has its own test suite
+    End-to-end testing through the demo script
+    Integration tests for service interactions
+    Performance monitoring through Prometheus/Grafana

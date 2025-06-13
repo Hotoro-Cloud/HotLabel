@@ -144,12 +144,14 @@ services:
       - name: providers-api-route
         paths:
           - /api/v1/providers
+          - /api/v1/providers/(?:\w+)
         strip_path: false
         preserve_host: true
         regex_priority: 100
       - name: providers-internal-route
         paths:
           - /internal/api/v1/providers
+          - /internal/api/v1/providers/(?:\w+)
         strip_path: true
         preserve_host: true
         regex_priority: 90
@@ -201,3 +203,55 @@ services:
         config:
           minute: 60
           policy: local
+
+  - name: users-service
+    url: http://users:8005
+    routes:
+      - name: sessions-api-route
+        paths:
+          - /api/v1/sessions
+          - /api/v1/sessions/(?:\w+)
+        strip_path: false
+        preserve_host: true
+        regex_priority: 100
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+            - PATCH
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - X-Auth-Token
+            - X-API-Key
+          exposed_headers:
+            - X-Auth-Token
+          credentials: true
+          max_age: 3600
+          preflight_continue: false
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+
+  - name: qa-service
+    url: http://qa:8003
+    routes:
+      - name: qa-consensus-route
+        paths:
+          - /api/v1/consensus
+          - /api/v1/consensus/(?:\w+)
+        strip_path: false
+        preserve_host: true
+        regex_priority: 100
