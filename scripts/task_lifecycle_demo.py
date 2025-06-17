@@ -319,7 +319,7 @@ class TaskLifecycle:
             "time_spent_ms": random.randint(3000, 10000)
         }
 
-    def submit_results_for_scenario(self, task_id: str, results_per_session: int = 2) -> List[Dict[str, Any]]:
+    def submit_results_for_scenario(self, task_id: str, results_per_session: int = 1) -> List[Dict[str, Any]]:
         """Submit results for a specific task based on its scenario"""
         print_step(f"STEP 5: Submitting results for task {task_id} ({self.scenario_results[task_id].value})")
         results = []
@@ -408,6 +408,63 @@ class TaskLifecycle:
                 print(f"Error checking consensus status for task {task_id}: {str(e)}")
         return consensus_data
 
+    def check_provider_tasks(self):
+        """Check final task status and results for provider"""
+        print_step("STEP 7: Check final task status and results")
+        
+        # Get all tasks for this provider
+        headers = {"X-API-Key": self.provider_api_key}
+        response = requests.get(
+            f"{TASKS_API_URL}",
+            params={"provider_id": str(self.provider_id)},
+            headers=headers
+        )
+        
+        if response.status_code == 200:
+            response_data = response.json()
+            tasks = response_data.get('items', [])
+            total = response_data.get('total', 0)
+            print(f"\nTotal tasks created by provider: {total}")
+            
+            for task in tasks:
+                task_id = task.get('id')
+                print(f"\nChecking final status for Task {task_id}")
+                print("\nTask Details:")
+                print(f"Status: {task.get('status', 'N/A')}")
+                print(f"Title: {task.get('title', 'N/A')}")
+                print(f"Description: {task.get('description', 'N/A')}")
+                print(f"Created at: {task.get('created_at', 'N/A')}")
+                print(f"Updated at: {task.get('updated_at', 'N/A')}")
+                
+                # Get consensus data from task response
+                consensus_data = task.get('consensus_data', {})
+                if consensus_data:
+                    print("\nConsensus Results:")
+                    print(f"Total Submissions: {consensus_data.get('total_submissions', 'N/A')}")
+                    print(f"Agreement Count: {consensus_data.get('agreement_count', 'N/A')}")
+                    print(f"Current Consensus: {consensus_data.get('current_consensus', 'N/A')}")
+                    print(f"Confidence Scores: {consensus_data.get('confidence_scores', 'N/A')}")
+                    print(f"Consensus Status: {task.get('consensus_status', 'N/A')}")
+                
+                # Get all results for this task
+                results_response = requests.get(f"{TASKS_API_URL}/{task_id}/results", headers=headers)
+                if results_response.status_code == 200:
+                    results = results_response.json()
+                    print(f"\nAll Submissions ({len(results)} total):")
+                    for result in results:
+                        print(f"\nSubmission by Publisher {result.get('publisher_id')}:")
+                        print(f"Result: {result.get('result', 'N/A')}")
+                        print(f"Confidence: {result.get('confidence', 'N/A')}")
+                        print(f"Labels: {result.get('labels', 'N/A')}")
+                        print(f"Quality Score: {result.get('quality_score', 'N/A')}")
+                        print(f"Submitted at: {result.get('created_at', 'N/A')}")
+                else:
+                    print(f"Error getting task results: {results_response.status_code}")
+                    print(results_response.text)
+        else:
+            print(f"Error getting provider tasks: {response.status_code}")
+            print(response.text)
+
     def check_publisher_contributions(self):
         """Check publisher contributions and session statistics."""
         print("\n--- STEP 7: Check publisher contributions ---")
@@ -420,30 +477,42 @@ class TaskLifecycle:
                 print(f"\nSession {session_id} Statistics:")
                 print(f"Created at: {self.session_data[session_id]['created_at']}")
                 print(f"Updated at: {self.session_data[session_id]['updated_at']}")
-            
-            # Get publisher task contributions
-            publisher_index = self.publisher_ids.index(publisher_id)
-            publisher_api_key = self.publisher_api_keys[publisher_index]
-            
-            response = requests.get(
-                f"{PUBLISHERS_API_URL}/{publisher_id}/tasks",
-                headers={"X-API-Key": publisher_api_key}
-            )
-            
-            if response.status_code == 200:
-                tasks = response.json()
-                print(f"\nTotal tasks completed: {len(tasks)}")
                 
-                for task in tasks:
-                    print(f"\nTask {task['id']}:")
-                    print(f"Status: {task.get('status', 'N/A')}")
-                    print(f"Result: {task.get('result', 'N/A')}")
-                    print(f"Confidence: {task.get('confidence', 'N/A')}")
-                    print(f"Labels: {task.get('labels', 'N/A')}")
-                    print(f"Quality Score: {task.get('quality_score', 'N/A')}")
-            else:
-                print(f"Error getting publisher tasks: {response.status_code}")
-                print(response.text)
+                # Get results for this session
+                response = requests.get(
+                    f"{TASKS_SERVICE_URL}/api/v1/tasks/results",
+                    params={"session_id": str(session_id)},
+                    headers={"X-API-Key": self.publisher_api_keys[self.publisher_ids.index(publisher_id)]}
+                )
+                
+                if response.status_code == 200:
+                    results = response.json()
+                    print(f"\nResults submitted in this session: {len(results)}")
+                    
+                    for result in results:
+                        print(f"\nTask {result.get('task_id')}:")
+                        print(f"Result: {result.get('result', 'N/A')}")
+                        print(f"Confidence: {result.get('confidence', 'N/A')}")
+                        print(f"Labels: {result.get('labels', 'N/A')}")
+                        print(f"Quality Score: {result.get('quality_score', 'N/A')}")
+                        print(f"Submitted at: {result.get('created_at', 'N/A')}")
+                else:
+                    print(f"Error getting session results: {response.status_code}")
+                    print(response.text)
+            
+            # Get total contributions across all sessions
+            total_results = 0
+            for session_id in self.sessions[publisher_id]:
+                response = requests.get(
+                    f"{TASKS_SERVICE_URL}/api/v1/tasks/results",
+                    params={"session_id": str(session_id)},
+                    headers={"X-API-Key": self.publisher_api_keys[self.publisher_ids.index(publisher_id)]}
+                )
+                if response.status_code == 200:
+                    results = response.json()
+                    total_results += len(results)
+            
+            print(f"\nTotal contributions by Publisher {publisher_id}: {total_results} results")
 
 def main():
     """Run the task lifecycle demonstration"""
@@ -458,7 +527,7 @@ def main():
     lifecycle.create_tasks_for_all_scenarios()
     
     # Register multiple publishers
-    lifecycle.register_multiple_publishers(count=12)
+    lifecycle.register_multiple_publishers(count=2)
     
     # Create sessions for publishers
     lifecycle.create_sessions_for_publishers()
@@ -473,6 +542,9 @@ def main():
     
     # Check consensus status
     lifecycle.check_consensus_status()
+    
+    # Check final task status and results
+    lifecycle.check_provider_tasks()
     
     # Check publisher contributions
     lifecycle.check_publisher_contributions()
