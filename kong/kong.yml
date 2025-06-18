@@ -7,7 +7,7 @@ services:
     routes:
       - name: publishers-health-route
         paths:
-          - /api/v1/publishers/health
+          - /health
         strip_path: false
         preserve_host: true
         regex_priority: 200

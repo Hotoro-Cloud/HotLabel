@@ -50,11 +50,11 @@ Data Flow:
    5. Consensus is calculated
    6. Final result is returned to provider
 
-Development Workflow:
-    Use hotlabel-infra/docker-compose-local.yml for local development
-    Run migrations from hotlabel-infra using the local compose file
-    Use hotlabel-infra/scripts/task_lifecycle_demo.py for testing
-    Always use the venv in hotlabel-infra for running demos
+Development Rules:
+    Always Use hotlabel-infra/docker-compose-local.yml for local development
+    Always Run migrations from hotlabel-infra using the local compose file
+    Always use hotlabel-infra/scripts/task_lifecycle_demo.py for testing
+    Always use the venv in hotlabel-infra before running demos
 
 Key Files:
     docker-compose-local.yml: Local development setup

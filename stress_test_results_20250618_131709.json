@@ -1,0 +1,56 @@
+{
+  "test_config": {
+    "iterations": 2,
+    "concurrent": 1,
+    "tasks_per_session": 1
+  },
+  "test_duration": "0:01:11.318817",
+  "system_metrics": [
+    {
+      "total_sessions": 2,
+      "total_tasks_completed": 2,
+      "total_errors": 0,
+      "avg_response_time_ms": 29281.5,
+      "avg_task_completion_time_ms": 0,
+      "consensus_reached_count": 0,
+      "tasks_in_progress": 0,
+      "tasks_completed": 0,
+      "tasks_failed": 0,
+      "positive_consensus_count": 0,
+      "negative_consensus_count": 0,
+      "ambiguous_consensus_count": 0
+    }
+  ],
+  "test_results": [
+    {
+      "session_id": "3b2fd9d7-098f-4e99-a5e4-e2d89e7e885a",
+      "task_id": "02b58c6e-2db0-403d-aecc-be369e1a069d",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-18 13:15:58.355716",
+      "end_time": "2025-06-18 13:16:27.654224",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 29298,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "88ce5d8d-8510-4b3b-99fc-cf5fb5964615",
+      "task_id": "7a9da69c-4c24-41c1-a641-2d75514d3aeb",
+      "scenario": "vqa_ambiguous_consensus",
+      "start_time": "2025-06-18 13:16:28.849281",
+      "end_time": "2025-06-18 13:16:58.114324",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 29265,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    }
+  ],
+  "provider_id": "5c01ba8f-7608-497d-80c3-edc8908b88b6",
+  "task_ids": [
+    "02b58c6e-2db0-403d-aecc-be369e1a069d",
+    "b915c099-5861-4a53-be9a-fb7a03b527f4",
+    "7a9da69c-4c24-41c1-a641-2d75514d3aeb"
+  ]
+}
