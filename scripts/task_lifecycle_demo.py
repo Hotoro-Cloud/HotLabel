@@ -52,6 +52,9 @@ class TaskScenario(Enum):
     HIGH_CONFIDENCE = "high_confidence"
     MIXED_CONFIDENCE = "mixed_confidence"
     EDGE_CASE = "edge_case"
+    VQA_LIVING_ROOM = "vqa_living_room"
+    VQA_FASHION = "vqa_fashion"
+    VQA_AMBIGUOUS = "vqa_ambiguous"
 
 def print_header(title: str) -> None:
     """Print a formatted header"""
@@ -119,65 +122,165 @@ class TaskLifecycle:
         print_step(f"Creating task for scenario: {scenario.value}")
         
         # Base task configuration
-        task_data = {
-            "title": f"Demo Task - {scenario.value}",
-            "description": f"A demo task for testing {scenario.value} scenario",
-            "provider_id": self.provider_id,
-            "task_type": "text_classification",
-            "content": {
-                "text": "This is a sample text for classification",
-                "labels": ["positive", "negative", "neutral"]
-            },
-            "language": "en",
-            "category": "demo",
-            "complexity_level": 2,
-            "tags": ["demo", "classification", "consensus", scenario.value],
-            "options": {"demo_option": True},
-            "time_estimate_seconds": 120,
-            "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
-            "status": "pending",
-        }
+        if scenario in [TaskScenario.VQA_LIVING_ROOM, TaskScenario.VQA_FASHION, TaskScenario.VQA_AMBIGUOUS]:
+            # VQA task configuration
+            if scenario == TaskScenario.VQA_LIVING_ROOM:
+                task_data = {
+                    "title": "VQA Task - Living Room",
+                    "description": "Visual Question Answering task about objects in a living room",
+                    "provider_id": self.provider_id,
+                    "task_type": "vqa",
+                    "category": "vqa",
+                    "complexity_level": 1,
+                    "type": "true-false",
+                    "topic": "living-room",
+                    "agreement_threshold": 0.7,  # 70% agreement required
+                    "confidence_threshold": 0.6,  # 60% confidence required
+                    "content": {
+                        "image_url": "https://s3-eu-north-1-derc-wmi-crowdlabel-production.s3.eu-north-1.amazonaws.com/tii_vqa_0whejvjm9blfgjb6.png",
+                        "image_filename": "tii_vqa_0whejvjm9blfgjb6.png",
+                        "question": "is there anything else that is the same shape as the tiny blue rubber thing?"
+                    },
+                    "task": {
+                        "text": "is there anything else that is the same shape as the tiny blue rubber thing?",
+                        "choices": [
+                            {
+                                "key": "a",
+                                "value": "True"
+                            },
+                            {
+                                "key": "b",
+                                "value": "False"
+                            }
+                        ]
+                    },
+                    "track_id": "t-ofacbYkrzRQzK7",
+                    "status": "pending",
+                    "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
+                }
+            elif scenario == TaskScenario.VQA_FASHION:
+                task_data = {
+                    "title": "VQA Task - Fashion",
+                    "description": "Visual Question Answering task about fashion items",
+                    "provider_id": self.provider_id,
+                    "task_type": "vqa",
+                    "category": "vqa",
+                    "complexity_level": 1,
+                    "type": "true-false",
+                    "topic": "fashion",
+                    "agreement_threshold": 0.7,  # 70% agreement required
+                    "confidence_threshold": 0.6,  # 60% confidence required
+                    "content": {
+                        "image_url": "https://s3-eu-north-1-derc-wmi-crowdlabel-production.s3.eu-north-1.amazonaws.com/tii_vqa_whbf6cf3umuoijcl.png",
+                        "image_filename": "tii_vqa_whbf6cf3umuoijcl.png",
+                        "question": "is there a tiny red object made of the same material as the large gray bag?"
+                    },
+                    "task": {
+                        "text": "is there a tiny red object made of the same material as the large gray bag?",
+                        "choices": [
+                            {
+                                "key": "a",
+                                "value": "True"
+                            },
+                            {
+                                "key": "b",
+                                "value": "False"
+                            }
+                        ]
+                    },
+                    "track_id": "t-8qPZ4PTvSnTp7T",
+                    "status": "pending",
+                    "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
+                }
+            else:  # VQA_AMBIGUOUS
+                task_data = {
+                    "title": "VQA Task - Ambiguous",
+                    "description": "Visual Question Answering task with ambiguous results (no consensus)",
+                    "provider_id": self.provider_id,
+                    "task_type": "vqa",
+                    "category": "vqa",
+                    "complexity_level": 1,
+                    "type": "true-false",
+                    "topic": "ambiguous",
+                    "agreement_threshold": 0.7,  # 70% agreement required
+                    "confidence_threshold": 0.6,  # 60% confidence required
+                    "content": {
+                        "image_url": "https://s3-eu-north-1-derc-wmi-crowdlabel-production.s3.eu-north-1.amazonaws.com/tii_vqa_ambiguous.png",
+                        "image_filename": "tii_vqa_ambiguous.png",
+                        "question": "is there a green object that is both soft and metallic?"
+                    },
+                    "task": {
+                        "text": "is there a green object that is both soft and metallic?",
+                        "choices": [
+                            {"key": "a", "value": "True"},
+                            {"key": "b", "value": "False"}
+                        ]
+                    },
+                    "track_id": "t-ambiguous",
+                    "status": "pending",
+                    "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
+                }
+        else:
+            # Original text classification task configuration
+            task_data = {
+                "title": f"Demo Task - {scenario.value}",
+                "description": f"A demo task for testing {scenario.value} scenario",
+                "provider_id": self.provider_id,
+                "task_type": "text_classification",
+                "content": {
+                    "text": "This is a sample text for classification",
+                    "labels": ["positive", "negative", "neutral"]
+                },
+                "language": "en",
+                "category": "demo",
+                "complexity_level": 2,
+                "tags": ["demo", "classification", "consensus", scenario.value],
+                "options": {"demo_option": True},
+                "time_estimate_seconds": 120,
+                "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
+                "status": "pending",
+            }
 
-        # Configure consensus parameters based on scenario
-        if scenario == TaskScenario.HIGH_AGREEMENT:
-            task_data.update({
-                "agreement_threshold": 0.7,  # 70% agreement required
-                "confidence_threshold": 0.6,  # 60% confidence required
-            })
-        elif scenario == TaskScenario.MEDIUM_AGREEMENT:
-            task_data.update({
-                "agreement_threshold": 0.5,  # 50% agreement required
-                "confidence_threshold": 0.6,  # 60% confidence required
-            })
-        elif scenario == TaskScenario.LOW_AGREEMENT:
-            task_data.update({
-                "agreement_threshold": 0.3,  # 30% agreement required
-                "confidence_threshold": 0.6,  # 60% confidence required
-            })
-        elif scenario == TaskScenario.HIGH_CONFIDENCE:
-            task_data.update({
-                "agreement_threshold": 0.5,  # 50% agreement required
-                "confidence_threshold": 0.8,  # 80% confidence required
-            })
-        elif scenario == TaskScenario.MIXED_CONFIDENCE:
-            task_data.update({
-                "agreement_threshold": 0.5,  # 50% agreement required
-                "confidence_threshold": 0.6,  # 60% confidence required
-            })
-        elif scenario == TaskScenario.EDGE_CASE:
-            task_data.update({
-                "agreement_threshold": 0.5,  # 50% agreement required
-                "confidence_threshold": 0.6,  # 60% confidence required
-            })
+            # Configure consensus parameters based on scenario
+            if scenario == TaskScenario.HIGH_AGREEMENT:
+                task_data.update({
+                    "agreement_threshold": 0.7,  # 70% agreement required
+                    "confidence_threshold": 0.6,  # 60% confidence required
+                })
+            elif scenario == TaskScenario.MEDIUM_AGREEMENT:
+                task_data.update({
+                    "agreement_threshold": 0.5,  # 50% agreement required
+                    "confidence_threshold": 0.6,  # 60% confidence required
+                })
+            elif scenario == TaskScenario.LOW_AGREEMENT:
+                task_data.update({
+                    "agreement_threshold": 0.3,  # 30% agreement required
+                    "confidence_threshold": 0.6,  # 60% confidence required
+                })
+            elif scenario == TaskScenario.HIGH_CONFIDENCE:
+                task_data.update({
+                    "agreement_threshold": 0.5,  # 50% agreement required
+                    "confidence_threshold": 0.8,  # 80% confidence required
+                })
+            elif scenario == TaskScenario.MIXED_CONFIDENCE:
+                task_data.update({
+                    "agreement_threshold": 0.5,  # 50% agreement required
+                    "confidence_threshold": 0.6,  # 60% confidence required
+                })
+            elif scenario == TaskScenario.EDGE_CASE:
+                task_data.update({
+                    "agreement_threshold": 0.5,  # 50% agreement required
+                    "confidence_threshold": 0.6,  # 60% confidence required
+                })
 
-        # Add consensus data structure
-        task_data["consensus_data"] = {
-            "total_submissions": 0,
-            "agreement_count": 0,
-            "confidence_scores": [],
-            "current_consensus": None
-        }
-        
+            # Add consensus data structure for text classification tasks
+            task_data["consensus_data"] = {
+                "total_submissions": 0,
+                "agreement_count": 0,
+                "confidence_scores": [],
+                "current_consensus": None
+            }
+
         print("Task Creation Payload:")
         print(json.dumps(task_data, indent=2))
         
@@ -282,36 +385,61 @@ class TaskLifecycle:
             return response.json()
         return []
 
-    def generate_result_for_scenario(self, scenario: TaskScenario, publisher_index: int) -> Dict[str, Any]:
+    def generate_result_for_scenario(self, scenario: TaskScenario, publisher_index: int, submission_count: int = 0) -> Dict[str, Any]:
         """Generate a result based on the scenario"""
-        if scenario == TaskScenario.HIGH_AGREEMENT:
-            # All publishers submit the same label with high confidence
-            label = "positive"
-            confidence = random.uniform(0.85, 0.95)
-        elif scenario == TaskScenario.MEDIUM_AGREEMENT:
-            # 70% of publishers submit the same label
-            label = "positive" if publisher_index < 8 else "negative"
-            confidence = random.uniform(0.7, 0.9)
-        elif scenario == TaskScenario.LOW_AGREEMENT:
-            # Random labels with medium confidence
-            label = random.choice(["positive", "negative", "neutral"])
-            confidence = random.uniform(0.6, 0.8)
-        elif scenario == TaskScenario.HIGH_CONFIDENCE:
-            # All publishers submit with high confidence
-            label = random.choice(["positive", "negative", "neutral"])
-            confidence = random.uniform(0.9, 0.95)
-        elif scenario == TaskScenario.MIXED_CONFIDENCE:
-            # Mixed confidence levels
-            label = "positive" if publisher_index < 6 else "negative"
-            confidence = random.uniform(0.6, 0.95)
-        else:  # EDGE_CASE
-            # Edge cases: very low confidence, invalid labels, etc.
-            if publisher_index % 3 == 0:
-                label = "invalid_label"
-                confidence = 0.3
-            else:
+        if scenario in [TaskScenario.VQA_LIVING_ROOM, TaskScenario.VQA_FASHION, TaskScenario.VQA_AMBIGUOUS]:
+            # For VQA tasks, generate different patterns based on scenario
+            if scenario == TaskScenario.VQA_LIVING_ROOM:
+                # Living room task: High agreement on True (75% True, 25% False)
+                # With 8 total submissions, we'll have 6 True and 2 False
+                if submission_count < 6:  # 75% True
+                    label = "True"
+                    confidence = random.uniform(0.8, 0.95)
+                else:  # 25% False
+                    label = "False"
+                    confidence = random.uniform(0.7, 0.9)
+            elif scenario == TaskScenario.VQA_FASHION:
+                # Fashion task: Negative journey (majority False)
+                # With 8 total submissions, 6 False and 2 True
+                if submission_count < 6:  # 75% False
+                    label = "False"
+                    confidence = random.uniform(0.8, 0.95)
+                else:  # 25% True
+                    label = "True"
+                    confidence = random.uniform(0.7, 0.9)
+            else:  # VQA_AMBIGUOUS
+                # Ambiguous task: Split agreement (50% True, 50% False) - no consensus
+                # With 8 total submissions, 4 True and 4 False
+                if submission_count < 4:
+                    label = "True"
+                    confidence = random.uniform(0.7, 0.9)
+                else:
+                    label = "False"
+                    confidence = random.uniform(0.7, 0.9)
+        else:
+            # Original text classification logic
+            if scenario == TaskScenario.HIGH_AGREEMENT:
                 label = "positive"
+                confidence = random.uniform(0.85, 0.95)
+            elif scenario == TaskScenario.MEDIUM_AGREEMENT:
+                label = "positive" if publisher_index < 8 else "negative"
+                confidence = random.uniform(0.7, 0.9)
+            elif scenario == TaskScenario.LOW_AGREEMENT:
+                label = random.choice(["positive", "negative", "neutral"])
                 confidence = random.uniform(0.6, 0.8)
+            elif scenario == TaskScenario.HIGH_CONFIDENCE:
+                label = random.choice(["positive", "negative", "neutral"])
+                confidence = random.uniform(0.9, 0.95)
+            elif scenario == TaskScenario.MIXED_CONFIDENCE:
+                label = "positive" if publisher_index < 6 else "negative"
+                confidence = random.uniform(0.6, 0.95)
+            else:  # EDGE_CASE
+                if publisher_index % 3 == 0:
+                    label = "invalid_label"
+                    confidence = 0.3
+                else:
+                    label = "positive"
+                    confidence = random.uniform(0.6, 0.8)
 
         return {
             "label": label,
@@ -324,6 +452,7 @@ class TaskLifecycle:
         print_step(f"STEP 5: Submitting results for task {task_id} ({self.scenario_results[task_id].value})")
         results = []
         scenario = self.scenario_results[task_id]
+        submission_count = 0  # Track total submissions for this task
 
         for publisher_index, (publisher_id, api_key) in enumerate(zip(self.publisher_ids, self.publisher_api_keys)):
             for session_id in self.sessions[publisher_id]:
@@ -333,7 +462,8 @@ class TaskLifecycle:
                         "Content-Type": "application/json"
                     }
 
-                    result_data = self.generate_result_for_scenario(scenario, publisher_index)
+                    result_data = self.generate_result_for_scenario(scenario, publisher_index, submission_count)
+                    submission_count += 1  # Increment submission counter
                     
                     result_payload = {
                         "publisher_id": str(publisher_id),
@@ -527,7 +657,7 @@ def main():
     lifecycle.create_tasks_for_all_scenarios()
     
     # Register multiple publishers
-    lifecycle.register_multiple_publishers(count=2)
+    lifecycle.register_multiple_publishers(count=4)  # Register 4 publishers for better consensus testing
     
     # Create sessions for publishers
     lifecycle.create_sessions_for_publishers()
