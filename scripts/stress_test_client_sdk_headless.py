@@ -1,13 +1,13 @@
- #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
-HotLabel System Stress Test - Client SDK Perspective (Headless Version)
+HotLabel System Stress Test - Client SDK Perspective (Headless Version - Playwright)
 
 This script performs a comprehensive stress test of the entire HotLabel system
-from a client SDK perspective, using a headless browser service for browserless VMs:
+from a client SDK perspective, using Playwright with browserless for headless automation:
 
 1. Register a single provider at the beginning
 2. Create multiple VQA tasks with different consensus scenarios
-3. Use browserless.io or similar headless service to access the sample site
+3. Use Playwright with browserless to access the sample site
 4. Complete tasks through the client SDK with new sessions each time
 5. Simulate different user behaviors and task completion patterns
 6. Monitor system performance and record metrics
@@ -35,14 +35,8 @@ from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import statistics
 
-# Selenium imports for webdriver with browserless support
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.common.exceptions import TimeoutException, WebDriverException
+# Playwright imports for headless browser automation
+from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
 
 # Configuration
 KONG_URL = "http://localhost:8000"  # API Gateway URL
@@ -52,7 +46,7 @@ QA_API_URL = f"{KONG_URL}/api/v1/consensus"
 SESSIONS_API_URL = f"{KONG_URL}/api/v1/sessions"
 
 # Sample site configuration
-SAMPLE_SITE_URL = "http://localhost:5001"
+SAMPLE_SITE_URL = "http://192.168.8.16:5001"
 
 # QA Service endpoints
 VALIDATION_URL = f"http://localhost:8003/api/v1/validation"
@@ -94,54 +88,63 @@ class SystemMetrics:
     negative_consensus_count: int
     ambiguous_consensus_count: int
 
-class HeadlessWebDriverManager:
-    """Manages headless webdriver instances using browserless or similar service"""
+class PlaywrightBrowserManager:
+    """Manages Playwright browser instances using browserless"""
     
     def __init__(self, browserless_url: str = "ws://localhost:3000"):
         self.browserless_url = browserless_url
-        self.drivers = []
+        self.playwright = None
+        self.browsers = []
         
-    def create_driver(self) -> webdriver.Chrome:
-        """Create a new Chrome webdriver instance using browserless"""
-        chrome_options = Options()
-        
-        # Browserless configuration
-        chrome_options.add_experimental_option("debuggerAddress", self.browserless_url.replace("ws://", "").replace("http://", ""))
-        
-        # Headless and performance options
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--window-size=1920,1080")
-        chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        
-        # Additional performance options for headless
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--disable-plugins")
-        chrome_options.add_argument("--disable-images")  # Disable images for faster loading
-        chrome_options.add_argument("--disable-javascript")  # Disable JS if not needed for basic functionality
+    def create_browser(self) -> Browser:
+        """Create a new browser instance using browserless"""
+        if not self.playwright:
+            self.playwright = sync_playwright().start()
         
         try:
-            # Create driver with browserless connection
-            driver = webdriver.Chrome(options=chrome_options)
-            self.drivers.append(driver)
-            return driver
+            # Connect to browserless
+            browser = self.playwright.chromium.connect_over_cdp(self.browserless_url)
+            self.browsers.append(browser)
+            return browser
         except Exception as e:
-            print(f"Failed to create headless webdriver: {e}")
+            print(f"Failed to create browser with browserless: {e}")
             raise
     
+    def create_page(self, browser: Browser) -> Page:
+        """Create a new page with optimized settings"""
+        page = browser.new_page()
+        
+        # Set viewport
+        page.set_viewport_size({"width": 1920, "height": 1080})
+        
+        # Set user agent
+        page.set_extra_http_headers({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        })
+        
+        # Disable images for faster loading
+        page.route("**/*.{png,jpg,jpeg,gif,svg,webp}", lambda route: route.abort())
+        
+        return page
+    
     def cleanup(self):
-        """Clean up all webdriver instances"""
-        for driver in self.drivers:
+        """Clean up all browser instances"""
+        for browser in self.browsers:
             try:
-                driver.quit()
+                browser.close()
             except:
                 pass
-        self.drivers.clear()
+        self.browsers.clear()
+        
+        if self.playwright:
+            try:
+                self.playwright.stop()
+            except:
+                pass
+            self.playwright = None
 
 class HotLabelHeadlessStressTest:
-    """Main headless stress test class"""
+    """Main headless stress test class using Playwright"""
     
     def __init__(self, iterations: int = 10, concurrent: int = 2, tasks_per_session: int = 1, browserless_url: str = "ws://localhost:3000"):
         self.iterations = iterations
@@ -161,8 +164,8 @@ class HotLabelHeadlessStressTest:
         self.start_time = None
         self.end_time = None
         
-        # WebDriver management
-        self.webdriver_manager = HeadlessWebDriverManager(browserless_url)
+        # Playwright management
+        self.browser_manager = PlaywrightBrowserManager(browserless_url)
         
         # Thread safety
         self.results_lock = threading.Lock()
@@ -306,8 +309,8 @@ class HotLabelHeadlessStressTest:
         
         return base_data
     
-    def complete_task_via_headless_webdriver(self, task_id: str, scenario: TaskScenario) -> TestResult:
-        """Complete a task using headless webdriver to simulate real user interaction"""
+    def complete_task_via_playwright(self, task_id: str, scenario: TaskScenario) -> TestResult:
+        """Complete a task using Playwright to simulate real user interaction"""
         session_id = str(uuid.uuid4())
         start_time = datetime.utcnow()
         result = TestResult(
@@ -319,83 +322,75 @@ class HotLabelHeadlessStressTest:
             success=False
         )
         
-        driver = None
+        browser = None
+        page = None
         try:
-            print(f"    Starting headless task completion for task {task_id} ({scenario.value})")
+            print(f"    Starting Playwright task completion for task {task_id} ({scenario.value})")
             
-            # Create new headless webdriver instance for this session
-            driver = self.webdriver_manager.create_driver()
+            # Create new browser and page for this session
+            browser = self.browser_manager.create_browser()
+            page = self.browser_manager.create_page(browser)
             
             # Navigate to sample site
             print(f"    Navigating to {SAMPLE_SITE_URL}")
-            driver.get(SAMPLE_SITE_URL)
+            page.goto(SAMPLE_SITE_URL, wait_until="networkidle")
             
-            # Wait for page to load
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
-            
-            # Wait for the page to fully load and any initial content to appear
-            time.sleep(3)  # Increased wait time for HotLabel modal to appear
+            # Wait for the page to fully load
+            time.sleep(3)  # Wait for HotLabel modal to appear
             
             # Debug: Print page title and URL
-            print(f"    Page title: {driver.title}")
-            print(f"    Current URL: {driver.current_url}")
+            print(f"    Page title: {page.title()}")
+            print(f"    Current URL: {page.url}")
             
             # Check for HotLabel modal and complete tasks if present
-            hotlabel_tasks_completed = self.complete_hotlabel_tasks(driver, scenario)
+            hotlabel_tasks_completed = self.complete_hotlabel_tasks(page, scenario)
             print(f"    Completed {hotlabel_tasks_completed} HotLabel tasks")
             
-            # Look for the Start Quiz button - it's a form submit button, not a link
+            # Look for the Start Quiz button
             try:
                 print("    Looking for Start Quiz button...")
-                # First try to find the Start Quiz button
-                start_button = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Start Quiz')]"))
-                )
-                print("    Found Start Quiz button, clicking...")
-                start_button.click()
-            except TimeoutException:
-                print("    Start Quiz button not found, trying alternative methods...")
-                # If Start Quiz button not found, try to find any button that might start the quiz
-                try:
-                    start_button = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']"))
-                    )
-                    print("    Found submit button, clicking...")
+                start_button = page.wait_for_selector("button:has-text('Start Quiz')", timeout=10000)
+                if start_button:
+                    print("    Found Start Quiz button, clicking...")
                     start_button.click()
-                except TimeoutException:
-                    print("    No buttons found, navigating directly to quiz page...")
-                    # If still not found, try to navigate directly to quiz page
-                    driver.get(f"{SAMPLE_SITE_URL}/quiz")
+                else:
+                    print("    Start Quiz button not found, trying alternative methods...")
+                    # Try to find any submit button
+                    submit_button = page.wait_for_selector("button[type='submit']", timeout=5000)
+                    if submit_button:
+                        print("    Found submit button, clicking...")
+                        submit_button.click()
+                    else:
+                        print("    No buttons found, navigating directly to quiz page...")
+                        page.goto(f"{SAMPLE_SITE_URL}/quiz", wait_until="networkidle")
+            except Exception as e:
+                print(f"    Error finding Start Quiz button: {e}")
+                # Navigate directly to quiz page
+                page.goto(f"{SAMPLE_SITE_URL}/quiz", wait_until="networkidle")
             
             # Wait for quiz page to load
             print("    Waiting for quiz page to load...")
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "form"))
-            )
+            page.wait_for_selector("form", timeout=10000)
             
-            print(f"    Quiz page loaded: {driver.current_url}")
+            print(f"    Quiz page loaded: {page.url}")
             
             # Complete the quiz (simulate user answering questions)
             print("    Completing quiz questions...")
-            self.complete_quiz_questions(driver)
+            self.complete_quiz_questions(page)
             
             # Submit the quiz
             print("    Submitting quiz...")
-            submit_button = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+            submit_button = page.wait_for_selector("button[type='submit']")
             submit_button.click()
             
             # Wait for result page
             print("    Waiting for result page...")
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
+            page.wait_for_load_state("networkidle")
             
-            print(f"    Result page loaded: {driver.current_url}")
+            print(f"    Result page loaded: {page.url}")
             
             # Check for HotLabel modal again on result page
-            hotlabel_tasks_completed += self.complete_hotlabel_tasks(driver, scenario)
+            hotlabel_tasks_completed += self.complete_hotlabel_tasks(page, scenario)
             print(f"    Total HotLabel tasks completed: {hotlabel_tasks_completed}")
             
             # Record successful completion
@@ -404,7 +399,7 @@ class HotLabelHeadlessStressTest:
             result.success = True
             result.response_time_ms = int((end_time - start_time).total_seconds() * 1000)
             
-            print(f"    Successfully completed task {task_id} via headless webdriver")
+            print(f"    Successfully completed task {task_id} via Playwright")
             return result
             
         except Exception as e:
@@ -415,27 +410,32 @@ class HotLabelHeadlessStressTest:
             result.response_time_ms = int((end_time - start_time).total_seconds() * 1000)
             print(f"    Failed to complete task {task_id}: {e}")
             
-            # Debug: Print page source if there's an error
-            if driver:
+            # Debug: Print page info if there's an error
+            if page:
                 try:
-                    print(f"      Current URL: {driver.current_url}")
-                    print(f"      Page title: {driver.title}")
-                    # Print first 500 characters of page source for debugging
-                    page_source = driver.page_source[:500]
-                    print(f"      Page source (first 500 chars): {page_source}")
+                    print(f"      Current URL: {page.url}")
+                    print(f"      Page title: {page.title()}")
+                    # Print first 500 characters of page content for debugging
+                    content = page.content()[:500]
+                    print(f"      Page content (first 500 chars): {content}")
                 except:
                     pass
             
         finally:
-            if driver:
+            if page:
                 try:
-                    driver.quit()
+                    page.close()
+                except:
+                    pass
+            if browser:
+                try:
+                    browser.close()
                 except:
                     pass
         
         return result
     
-    def complete_hotlabel_tasks(self, driver: webdriver.Chrome, scenario: TaskScenario) -> int:
+    def complete_hotlabel_tasks(self, page: Page, scenario: TaskScenario) -> int:
         """Complete HotLabel tasks if modal is present"""
         tasks_completed = 0
         
@@ -456,13 +456,12 @@ class HotLabelHeadlessStressTest:
             modal_found = False
             for selector in modal_selectors:
                 try:
-                    modal = WebDriverWait(driver, 3).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
-                    )
-                    print(f"      Found HotLabel modal with selector: {selector}")
-                    modal_found = True
-                    break
-                except TimeoutException:
+                    modal = page.wait_for_selector(selector, timeout=3000)
+                    if modal:
+                        print(f"      Found HotLabel modal with selector: {selector}")
+                        modal_found = True
+                        break
+                except:
                     continue
             
             if not modal_found:
@@ -470,7 +469,7 @@ class HotLabelHeadlessStressTest:
                 return tasks_completed
             
             # Complete VQA task based on scenario
-            vqa_completed = self.complete_vqa_task(driver, scenario)
+            vqa_completed = self.complete_vqa_task(page, scenario)
             if vqa_completed:
                 tasks_completed += 1
                 print("      Completed VQA task")
@@ -482,14 +481,14 @@ class HotLabelHeadlessStressTest:
         
         return tasks_completed
     
-    def complete_vqa_task(self, driver: webdriver.Chrome, scenario: TaskScenario) -> bool:
+    def complete_vqa_task(self, page: Page, scenario: TaskScenario) -> bool:
         """Complete a VQA (Visual Question Answering) task based on scenario"""
         try:
             # Look for VQA-specific elements based on the HotLabel SDK structure
             # The modal should have: question, image, and True/False option buttons
             
             # Check for image (VQA tasks always have an image)
-            images = driver.find_elements(By.CSS_SELECTOR, "img")
+            images = page.query_selector_all("img")
             if not images:
                 print("        No images found for VQA task")
                 return False
@@ -502,23 +501,23 @@ class HotLabelHeadlessStressTest:
                 ".hotlabel-options button[data-option-index]",
                 ".hotlabel-options button",
                 "button[data-option-index]",
-                "button:contains('True')",
-                "button:contains('False')",
+                "button:has-text('True')",
+                "button:has-text('False')",
                 "input[value='True']",
                 "input[value='False']",
-                "label:contains('True')",
-                "label:contains('False')"
+                "label:has-text('True')",
+                "label:has-text('False')"
             ]
             
             selected_option = None
             for selector in option_selectors:
                 try:
-                    elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                    elements = page.query_selector_all(selector)
                     if elements:
                         print(f"        Found {len(elements)} option elements with selector: {selector}")
                         
                         # Select option based on scenario to achieve desired consensus
-                        selected_option = self.select_option_for_scenario(driver, elements, scenario)
+                        selected_option = self.select_option_for_scenario(page, elements, scenario)
                         if selected_option:
                             print(f"        Selected VQA option: {selected_option}")
                             # The result is submitted immediately when option is clicked
@@ -539,7 +538,7 @@ class HotLabelHeadlessStressTest:
             print(f"        Error completing VQA task: {e}")
             return False
     
-    def select_option_for_scenario(self, driver: webdriver.Chrome, elements: List, scenario: TaskScenario) -> Optional[str]:
+    def select_option_for_scenario(self, page: Page, elements: List, scenario: TaskScenario) -> Optional[str]:
         """Select an option based on the consensus scenario to achieve desired results"""
         try:
             if not elements:
@@ -550,7 +549,7 @@ class HotLabelHeadlessStressTest:
             for element in elements:
                 try:
                     # Try different ways to get the option text/value
-                    option_text = element.text.strip()
+                    option_text = element.text_content().strip()
                     option_value = element.get_attribute('value')
                     option_data = element.get_attribute('data-option-index')
                     
@@ -593,7 +592,7 @@ class HotLabelHeadlessStressTest:
             # Find and click the element with the selected option
             for element in elements:
                 try:
-                    element_text = element.text.strip()
+                    element_text = element.text_content().strip()
                     element_value = element.get_attribute('value')
                     element_data = element.get_attribute('data-option-index')
                     
@@ -603,7 +602,7 @@ class HotLabelHeadlessStressTest:
                          ((int(element_data) == 0 and selected_text == "True") or
                           (int(element_data) == 1 and selected_text == "False")))):
                         
-                        driver.execute_script("arguments[0].click();", element)
+                        element.click()
                         time.sleep(2)  # Wait for automatic submission to complete
                         return selected_text
                 except:
@@ -611,7 +610,7 @@ class HotLabelHeadlessStressTest:
             
             # Fallback: click the first element
             if elements:
-                driver.execute_script("arguments[0].click();", elements[0])
+                elements[0].click()
                 time.sleep(2)  # Wait for automatic submission to complete
                 return options[0] if options else "Unknown"
             
@@ -621,10 +620,10 @@ class HotLabelHeadlessStressTest:
             print(f"          Error selecting option: {e}")
             return None
     
-    def complete_quiz_questions(self, driver: webdriver.Chrome) -> None:
+    def complete_quiz_questions(self, page: Page) -> None:
         """Complete quiz questions by selecting random answers"""
         # Find all radio buttons
-        radio_buttons = driver.find_elements(By.CSS_SELECTOR, "input[type='radio']")
+        radio_buttons = page.query_selector_all("input[type='radio']")
         
         # Group radio buttons by question
         questions = {}
@@ -639,7 +638,7 @@ class HotLabelHeadlessStressTest:
             if radios:
                 # Select a random answer
                 selected_radio = random.choice(radios)
-                driver.execute_script("arguments[0].click();", selected_radio)
+                selected_radio.click()
                 time.sleep(0.5)  # Small delay to simulate human interaction
     
     def run_single_session(self, session_index: int) -> List[TestResult]:
@@ -654,8 +653,8 @@ class HotLabelHeadlessStressTest:
             
             print(f"Session {session_index + 1}, Task {task_index + 1}: Completing {scenario.value}")
             
-            # Complete task via headless webdriver
-            result = self.complete_task_via_headless_webdriver(task_id, scenario)
+            # Complete task via Playwright
+            result = self.complete_task_via_playwright(task_id, scenario)
             session_results.append(result)
             
             # Small delay between tasks
@@ -665,7 +664,7 @@ class HotLabelHeadlessStressTest:
     
     def run_stress_test(self) -> None:
         """Run the main headless stress test"""
-        self.print_header("Starting HotLabel System Headless Stress Test")
+        self.print_header("Starting HotLabel System Headless Stress Test (Playwright)")
         self.start_time = datetime.utcnow()
         
         try:
@@ -721,7 +720,7 @@ class HotLabelHeadlessStressTest:
             raise
         finally:
             self.end_time = datetime.utcnow()
-            self.webdriver_manager.cleanup()
+            self.browser_manager.cleanup()
     
     def calculate_final_metrics(self) -> None:
         """Calculate final system metrics"""
@@ -832,7 +831,7 @@ class HotLabelHeadlessStressTest:
     
     def print_results(self) -> None:
         """Print comprehensive test results"""
-        self.print_header("Headless Stress Test Results")
+        self.print_header("Headless Stress Test Results (Playwright)")
         
         if not self.system_metrics:
             print("No metrics available")
@@ -901,7 +900,7 @@ class HotLabelHeadlessStressTest:
 
 def main():
     """Main function"""
-    parser = argparse.ArgumentParser(description="HotLabel System Headless Stress Test")
+    parser = argparse.ArgumentParser(description="HotLabel System Headless Stress Test (Playwright)")
     parser.add_argument("--iterations", type=int, default=10, help="Number of sessions to run")
     parser.add_argument("--concurrent", type=int, default=2, help="Number of concurrent sessions")
     parser.add_argument("--tasks-per-session", type=int, default=1, help="Number of tasks per session")
@@ -909,7 +908,7 @@ def main():
     
     args = parser.parse_args()
     
-    print("HotLabel System Headless Stress Test - Client SDK Perspective")
+    print("HotLabel System Headless Stress Test - Client SDK Perspective (Playwright)")
     print(f"Configuration:")
     print(f"  Iterations: {args.iterations}")
     print(f"  Concurrent sessions: {args.concurrent}")

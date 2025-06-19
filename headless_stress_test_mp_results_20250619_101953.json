@@ -1,0 +1,95 @@
+{
+  "test_config": {
+    "iterations": 5,
+    "concurrent": 2,
+    "tasks_per_session": 1,
+    "browserless_url": "ws://localhost:3001"
+  },
+  "test_duration": "0:02:26.103641",
+  "results": {
+    "total_sessions": 5,
+    "successful": 5,
+    "failed": 0,
+    "success_rate": 100.0,
+    "hotlabel_modals_found": 0,
+    "hotlabel_tasks_completed": 0
+  },
+  "test_results": [
+    {
+      "session_id": "c19b8f00-98de-47d7-913f-b4595087aa29",
+      "task_id": "a4cfe006-20ea-4e28-b577-628e5198ccbc",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:17:27.254157",
+      "end_time": "2025-06-19 10:18:16.181854",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 48927,
+      "hotlabel_modal_found": false,
+      "hotlabel_tasks_completed": 0,
+      "page_title": "Welcome to the Coffee Quiz",
+      "page_url": "http://192.168.8.16:5001/"
+    },
+    {
+      "session_id": "17a3d025-25b3-441d-a015-8ad9751c4fab",
+      "task_id": "c78930fa-cc9a-4eda-80bf-3744513e72d2",
+      "scenario": "vqa_negative_consensus",
+      "start_time": "2025-06-19 10:17:27.254172",
+      "end_time": "2025-06-19 10:18:16.392441",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 49138,
+      "hotlabel_modal_found": false,
+      "hotlabel_tasks_completed": 0,
+      "page_title": "Welcome to the Coffee Quiz",
+      "page_url": "http://192.168.8.16:5001/"
+    },
+    {
+      "session_id": "cc0fb293-ac01-456b-a348-b4fca520f847",
+      "task_id": "a4cfe006-20ea-4e28-b577-628e5198ccbc",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:18:16.235420",
+      "end_time": "2025-06-19 10:19:04.689195",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 48453,
+      "hotlabel_modal_found": false,
+      "hotlabel_tasks_completed": 0,
+      "page_title": "Welcome to the Coffee Quiz",
+      "page_url": "http://192.168.8.16:5001/"
+    },
+    {
+      "session_id": "cc67d536-e2dd-4087-a823-e089947f252d",
+      "task_id": "c78930fa-cc9a-4eda-80bf-3744513e72d2",
+      "scenario": "vqa_negative_consensus",
+      "start_time": "2025-06-19 10:18:16.459195",
+      "end_time": "2025-06-19 10:19:04.860830",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 48401,
+      "hotlabel_modal_found": false,
+      "hotlabel_tasks_completed": 0,
+      "page_title": "Welcome to the Coffee Quiz",
+      "page_url": "http://192.168.8.16:5001/"
+    },
+    {
+      "session_id": "49b64501-41b5-421a-8a2e-7714be6aef3b",
+      "task_id": "a4cfe006-20ea-4e28-b577-628e5198ccbc",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:19:04.796597",
+      "end_time": "2025-06-19 10:19:52.956962",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 48160,
+      "hotlabel_modal_found": false,
+      "hotlabel_tasks_completed": 0,
+      "page_title": "Welcome to the Coffee Quiz",
+      "page_url": "http://192.168.8.16:5001/"
+    }
+  ],
+  "provider_id": "4656c87b-9388-4f25-8469-dd155f919f4e",
+  "task_ids": [
+    "a4cfe006-20ea-4e28-b577-628e5198ccbc",
+    "c78930fa-cc9a-4eda-80bf-3744513e72d2",
+    "2b317810-0744-4a13-b5ce-4d3aafc91235"
+  ]
+}

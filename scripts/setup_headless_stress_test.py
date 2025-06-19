@@ -1,6 +1,6 @@
- #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
-Setup script for HotLabel Headless Stress Test Environment
+Setup script for HotLabel Headless Stress Test Environment (Playwright Version)
 
 This script sets up the environment needed to run the headless stress test:
 1. Install required Python dependencies
@@ -49,10 +49,8 @@ def install_python_dependencies() -> bool:
     print("\n=== Installing Python Dependencies ===")
     
     requirements = [
-        "selenium>=4.0.0",
-        "requests>=2.25.0",
-        "webdriver-manager>=3.8.0",
-        "statistics",  # Built-in in Python 3.4+
+        "playwright>=1.40.0",
+        "requests>=2.31.0",
     ]
     
     try:
@@ -64,6 +62,19 @@ def install_python_dependencies() -> bool:
         return True
     except subprocess.CalledProcessError as e:
         print(f"Failed to install Python dependencies: {e}")
+        return False
+
+def install_playwright_browsers() -> bool:
+    """Install Playwright browsers"""
+    print("\n=== Installing Playwright Browsers ===")
+    
+    try:
+        print("Installing Playwright browsers...")
+        run_command("playwright install chromium")
+        print("Playwright browsers installed successfully ✓")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to install Playwright browsers: {e}")
         return False
 
 def setup_browserless_local() -> bool:
@@ -85,26 +96,28 @@ def setup_browserless_local() -> bool:
         except:
             pass
         
-        # Start browserless container
+        # Start browserless container with proper network configuration
         print("Starting browserless container...")
         run_command("""
             docker run -d \
                 --name browserless-chrome \
-                --network host \
-                -p 3000:3000 \
+                -p 3001:3000 \
                 -e MAX_CONCURRENT_SESSIONS=10 \
                 -e CONNECTION_TIMEOUT=60000 \
                 -e MAX_QUEUE_LENGTH=10 \
+                -e ENABLE_DEBUGGER=true \
+                -e ENABLE_CORS=true \
+                -e FUNCTION_ENABLE_INCOGNITO=true \
                 browserless/chrome:latest
         """)
         
         # Wait for browserless to start
         print("Waiting for browserless to start...")
-        time.sleep(10)
+        time.sleep(15)  # Increased wait time
         
         # Test browserless connection
         try:
-            response = requests.get("http://localhost:3000/json/version", timeout=10)
+            response = requests.get("http://localhost:3001/json/version", timeout=10)
             if response.status_code == 200:
                 print("Browserless started successfully ✓")
                 return True
@@ -135,38 +148,66 @@ def setup_browserless_cloud() -> str:
         print("Skipping browserless cloud setup")
         return ""
 
-def test_selenium_setup(browserless_url: str) -> bool:
-    """Test Selenium setup with browserless"""
-    print(f"\n=== Testing Selenium Setup with {browserless_url} ===")
+def test_playwright_setup(browserless_url: str) -> bool:
+    """Test Playwright setup with browserless"""
+    print(f"\n=== Testing Playwright Setup with {browserless_url} ===")
     
     try:
-        from selenium import webdriver
-        from selenium.webdriver.chrome.options import Options
+        from playwright.sync_api import sync_playwright
         
-        chrome_options = Options()
-        chrome_options.add_experimental_option("debuggerAddress", browserless_url.replace("ws://", "").replace("wss://", "").replace("http://", "").replace("https://", ""))
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        
-        print("Creating test webdriver...")
-        driver = webdriver.Chrome(options=chrome_options)
-        
-        print("Navigating to test page...")
-        driver.get("https://httpbin.org/ip")
-        
-        print("Getting page title...")
-        title = driver.title
-        print(f"Page title: {title}")
-        
-        print("Closing webdriver...")
-        driver.quit()
-        
-        print("Selenium setup test successful ✓")
-        return True
-        
+        with sync_playwright() as p:
+            # Connect to browserless
+            browser = p.chromium.connect_over_cdp(browserless_url)
+            
+            # Create a new page
+            page = browser.new_page()
+            
+            # Navigate to test page
+            print("Navigating to test page...")
+            page.goto("https://httpbin.org/ip")
+            
+            # Get page title
+            title = page.title()
+            print(f"Page title: {title}")
+            
+            # Get page content
+            content = page.content()
+            print(f"Page content (first 100 chars): {content[:100]}")
+            
+            # Close browser
+            browser.close()
+            
+            print("Playwright setup test successful ✓")
+            return True
+            
     except Exception as e:
-        print(f"Selenium setup test failed: {e}")
+        print(f"Playwright setup test failed: {e}")
+        return False
+
+def test_browserless_connection(browserless_url: str) -> bool:
+    """Test browserless connection using requests"""
+    print("\n=== Testing Browserless Connection ===")
+    
+    try:
+        # Extract port from browserless URL
+        if "ws://localhost:" in browserless_url:
+            port = browserless_url.split(":")[-1]
+        elif "wss://localhost:" in browserless_url:
+            port = browserless_url.split(":")[-1]
+        else:
+            port = "3000"  # Default fallback
+        
+        # Test basic connectivity
+        response = requests.get(f"http://localhost:{port}/json/version", timeout=10)
+        if response.status_code == 200:
+            version_info = response.json()
+            print(f"Browserless version: {version_info}")
+            return True
+        else:
+            print(f"Browserless version check failed: {response.status_code}")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to connect to browserless: {e}")
         return False
 
 def test_hotlabel_services() -> bool:
@@ -202,7 +243,7 @@ def create_config_file(browserless_url: str) -> None:
     """Create a configuration file for the headless stress test"""
     print("\n=== Creating Configuration File ===")
     
-    config_content = f"""# HotLabel Headless Stress Test Configuration
+    config_content = f"""# HotLabel Headless Stress Test Configuration (Playwright Version)
 # Generated on {time.strftime('%Y-%m-%d %H:%M:%S')}
 
 # Browserless Configuration
@@ -235,8 +276,8 @@ IMPLICIT_WAIT=10
 
 def main():
     """Main setup function"""
-    parser = argparse.ArgumentParser(description="Setup HotLabel Headless Stress Test Environment")
-    parser.add_argument("--browserless-url", type=str, default="ws://localhost:3000", 
+    parser = argparse.ArgumentParser(description="Setup HotLabel Headless Stress Test Environment (Playwright)")
+    parser.add_argument("--browserless-url", type=str, default="ws://localhost:3001", 
                        help="Browserless service URL")
     parser.add_argument("--use-cloud", action="store_true", 
                        help="Use browserless.io cloud service instead of local Docker")
@@ -245,8 +286,8 @@ def main():
     
     args = parser.parse_args()
     
-    print("HotLabel Headless Stress Test Environment Setup")
-    print("=" * 50)
+    print("HotLabel Headless Stress Test Environment Setup (Playwright Version)")
+    print("=" * 70)
     
     # Check Python version
     if not check_python_version():
@@ -255,6 +296,11 @@ def main():
     # Install Python dependencies
     if not install_python_dependencies():
         print("Failed to install Python dependencies")
+        sys.exit(1)
+    
+    # Install Playwright browsers
+    if not install_playwright_browsers():
+        print("Failed to install Playwright browsers")
         sys.exit(1)
     
     # Set up browserless
@@ -273,9 +319,19 @@ def main():
             print("3. Use --use-cloud to use browserless.io cloud service")
             sys.exit(1)
     
-    # Test Selenium setup
-    if not test_selenium_setup(browserless_url):
-        print("Failed to test Selenium setup")
+    # Test browserless connection
+    if not test_browserless_connection(browserless_url):
+        print("Failed to connect to browserless")
+        sys.exit(1)
+    
+    # Test Playwright setup
+    if not test_playwright_setup(browserless_url):
+        print("Failed to test Playwright setup")
+        print("\nTroubleshooting tips:")
+        print("1. Make sure browserless is running: docker ps | grep browserless")
+        print("2. Check browserless logs: docker logs browserless-chrome")
+        print("3. Try restarting browserless: docker restart browserless-chrome")
+        print("4. Check if port 3001 is available: lsof -i :3001")
         sys.exit(1)
     
     # Test HotLabel services
@@ -286,7 +342,7 @@ def main():
     # Create configuration file
     create_config_file(browserless_url)
     
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 70)
     print("Setup completed successfully!")
     print(f"Browserless URL: {browserless_url}")
     print("\nTo run the headless stress test:")

@@ -1,0 +1,153 @@
+{
+  "test_config": {
+    "iterations": 10,
+    "concurrent": 2,
+    "tasks_per_session": 1,
+    "browserless_url": "ws://localhost:3001"
+  },
+  "test_duration": "0:01:48.635270",
+  "system_metrics": [
+    {
+      "total_sessions": 10,
+      "total_tasks_completed": 3,
+      "total_errors": 7,
+      "avg_response_time_ms": 47391.333333333336,
+      "avg_task_completion_time_ms": 0,
+      "consensus_reached_count": 0,
+      "tasks_in_progress": 0,
+      "tasks_completed": 0,
+      "tasks_failed": 0,
+      "positive_consensus_count": 0,
+      "negative_consensus_count": 0,
+      "ambiguous_consensus_count": 0
+    }
+  ],
+  "test_results": [
+    {
+      "session_id": "e8c7ea15-7e06-4d64-a012-e7a8e35b6aee",
+      "task_id": "a9050d6a-4f09-4dd2-b023-67910522caf5",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:07:13.875672",
+      "end_time": "2025-06-19 10:08:01.433281",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 47557,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "148b19f3-faef-46e1-8a62-ee9489c3800c",
+      "task_id": "f667bfb4-b6e5-41e2-881b-7e13df2d0037",
+      "scenario": "vqa_ambiguous_consensus",
+      "start_time": "2025-06-19 10:07:13.875249",
+      "end_time": "2025-06-19 10:08:01.432969",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 47557,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "1ab52e70-a249-492f-8552-22a56750c053",
+      "task_id": "a9050d6a-4f09-4dd2-b023-67910522caf5",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:08:02.850208",
+      "end_time": "2025-06-19 10:08:02.851080",
+      "success": false,
+      "error_message": "Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x102ceee40 (otid=0x102ccb3f0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x102cff940 (otid=0x102ccb750) suspended active started main>",
+      "response_time_ms": 0,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "8e577613-6865-452c-bfe7-e9722b9e6cf3",
+      "task_id": "a9050d6a-4f09-4dd2-b023-67910522caf5",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:08:04.519825",
+      "end_time": "2025-06-19 10:08:04.520341",
+      "success": false,
+      "error_message": "Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x102ceee40 (otid=0x102ccb3f0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x102cff940 (otid=0x102ccb750) suspended active started main>",
+      "response_time_ms": 0,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "4c05c066-6021-430a-9863-47ce91edc987",
+      "task_id": "a9050d6a-4f09-4dd2-b023-67910522caf5",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:08:07.154191",
+      "end_time": "2025-06-19 10:08:07.155256",
+      "success": false,
+      "error_message": "Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x102ceee40 (otid=0x102ccb3f0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x102cff940 (otid=0x102ccb750) suspended active started main>",
+      "response_time_ms": 1,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "f50ceb25-dc63-4834-9ba1-921f822c8025",
+      "task_id": "a9050d6a-4f09-4dd2-b023-67910522caf5",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:08:09.552677",
+      "end_time": "2025-06-19 10:08:09.553104",
+      "success": false,
+      "error_message": "Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x102ceee40 (otid=0x102ccb3f0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x102cff940 (otid=0x102ccb750) suspended active started main>",
+      "response_time_ms": 0,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "28ff02a5-7a2a-46d0-b03d-07e6648118d9",
+      "task_id": "f667bfb4-b6e5-41e2-881b-7e13df2d0037",
+      "scenario": "vqa_ambiguous_consensus",
+      "start_time": "2025-06-19 10:08:11.936972",
+      "end_time": "2025-06-19 10:08:11.938554",
+      "success": false,
+      "error_message": "Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x102ceee40 (otid=0x102ccb3f0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x102cff940 (otid=0x102ccb750) suspended active started main>",
+      "response_time_ms": 1,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "c8093459-6da3-41ab-be14-3360b6509038",
+      "task_id": "a9050d6a-4f09-4dd2-b023-67910522caf5",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:08:13.225182",
+      "end_time": "2025-06-19 10:08:13.226463",
+      "success": false,
+      "error_message": "Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x102ceee40 (otid=0x102ccb3f0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x102cff940 (otid=0x102ccb750) suspended active started main>",
+      "response_time_ms": 1,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "bdcd6ff9-59bd-430f-97b1-1156c2e75bea",
+      "task_id": "a9050d6a-4f09-4dd2-b023-67910522caf5",
+      "scenario": "vqa_positive_consensus",
+      "start_time": "2025-06-19 10:08:15.823027",
+      "end_time": "2025-06-19 10:08:15.824188",
+      "success": false,
+      "error_message": "Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x102ceee40 (otid=0x102ccb3f0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x102cff940 (otid=0x102ccb750) suspended active started main>",
+      "response_time_ms": 1,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    },
+    {
+      "session_id": "4c7a74d3-52af-4f3f-8982-a1aebe47e5dd",
+      "task_id": "40dbda7a-c4e0-4a2d-afcd-a8a784d42050",
+      "scenario": "vqa_negative_consensus",
+      "start_time": "2025-06-19 10:08:02.820832",
+      "end_time": "2025-06-19 10:08:49.881581",
+      "success": true,
+      "error_message": null,
+      "response_time_ms": 47060,
+      "task_completion_time_ms": null,
+      "selected_option": null
+    }
+  ],
+  "provider_id": "9f9af483-0cc7-46c7-8e85-51bdce73f956",
+  "task_ids": [
+    "a9050d6a-4f09-4dd2-b023-67910522caf5",
+    "40dbda7a-c4e0-4a2d-afcd-a8a784d42050",
+    "f667bfb4-b6e5-41e2-881b-7e13df2d0037"
+  ]
+}
