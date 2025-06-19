@@ -162,6 +162,11 @@ services:
       - SERVICE_NAME=hotlabel-users
       - SERVICE_PORT=8005
       - LOG_LEVEL=info
+      - SECRET_KEY=hotlabel-secret-key
+      - REDIS_HOST=redis
+      - TASKS_SERVICE_URL=http://tasks:8002
+      - QA_SERVICE_URL=http://qa:8003
+      - PUBLISHERS_SERVICE_URL=http://publishers:8004
     ports:
       - "8005:8005"
     depends_on:
