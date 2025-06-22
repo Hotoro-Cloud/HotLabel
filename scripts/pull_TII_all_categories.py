@@ -54,11 +54,11 @@ VERIFY_SSL = False
 # Task Service Configuration
 KONG_URL = "http://localhost:8000"  # Kong Gateway URL
 TASKS_BASE_URL = f"{KONG_URL}/api/v1/tasks"
-TASKS_API_KEY = "pk_9biy9OZkyvk-AHZKXGFAzG6Tbmy2_veli8k0M_Ywkjg"  # Set your task service API key
+TASKS_API_KEY = "pk_UqY8BmXSHcGCa92Al1JyTyot64CvmyREW_i8x1sWo2s"  # Set your task service API key
 TASKS_HEADERS = {"X-API-Key": TASKS_API_KEY}
 
 # Default provider ID (replace with your actual provider ID)
-DEFAULT_PROVIDER_ID = "b9bc2f52-2f11-44b6-8eb2-39fcb342302a"
+DEFAULT_PROVIDER_ID = "fd65c9c9-03c9-4d5a-8367-0d6e4b759127"
 
 # TII API Categories and Options (from latest documentation)
 TII_CATEGORIES = ["vqa"]  # Visual Question Analysis
@@ -246,61 +246,58 @@ def transform_tii_to_task_format(tii_data: Dict[str, Any], provider_id: str = No
     
     # Get image URL if available
     image_url = None
+    image_filename = None
     if "content" in tii_data and "image" in tii_data["content"] and "url" in tii_data["content"]["image"]:
         image_url = tii_data["content"]["image"]["url"]
+        # Extract filename from URL
+        if image_url:
+            image_filename = image_url.split("/")[-1]
     
     # Get question text
     question = None
     if "task" in tii_data and "text" in tii_data["task"]:
         question = tii_data["task"]["text"]
     
-    # Get choices if available
-    choices = None
+    # Get choices and transform them to the correct format
+    options = []
     if "task" in tii_data and "choices" in tii_data["task"]:
         choices = tii_data["task"]["choices"]
+        # Transform choices to simple array of strings
+        if isinstance(choices, list):
+            for choice in choices:
+                if isinstance(choice, dict) and "value" in choice:
+                    options.append(choice["value"])
+                elif isinstance(choice, str):
+                    options.append(choice)
     
     # Create the task data structure according to Hotlabel schema
     transformed_task = {
-        "title": f"TII Task: {tii_id}",
-        "description": f"Task imported from TII with topic: {topic}",
+        "title": tii_id,
+        "description": "",
         "provider_id": provider_id,
         "task_type": task_type,  # Use TII type as task_type
         "content": {
             "question": question or "What is shown in this image?",  # Ensure question is always present
-            "image_url": image_url or ""  # Ensure image_url is always present
+            "image_url": image_url or "",  # Ensure image_url is always present
+            "image_filename": image_filename or "",  # Add image filename
+            "options": options  # Store options as array of strings in content
         },
         "language": language,
         "category": category,  # This field exists in Hotlabel
         "topic": topic,        # Always set topic
         "complexity_level": complexity,
         "time_estimate_seconds": 300,  # Default time estimate
-        "tags": [f"tii", category, topic, task_type, language],
+        "tags": [],
         "golden_set": False,
         "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
         "status": "pending"
     }
     
-    # Add image URL to content if available
-    if image_url:
-        transformed_task["content"]["image_url"] = image_url
-    
-    # Add choices to options if available (this is the proper way in Hotlabel)
-    if choices:
-        transformed_task["options"] = {
-            "choices": choices,
-            "tii_id": tii_id,
-            "tii_track_id": track_id,
-            "tii_task_type": task_type,
-            "tii_topic": topic
-        }
-    else:
-        # Still include TII metadata even if no choices
-        transformed_task["options"] = {
-            "tii_id": tii_id,
-            "tii_track_id": track_id,
-            "tii_task_type": task_type,
-            "tii_topic": topic
-        }
+    # Add TII metadata as additional fields (not in content)
+    transformed_task["tii_id"] = tii_id
+    transformed_task["tii_track_id"] = track_id
+    transformed_task["tii_task_type"] = task_type
+    transformed_task["tii_topic"] = topic
     
     return transformed_task
 

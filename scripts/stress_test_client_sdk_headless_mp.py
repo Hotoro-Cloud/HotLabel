@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 HotLabel System Stress Test - Multiprocessing Version
+This script uses existing tasks from the database (created by pull_TII_all_categories.py)
 """
 
 import requests
@@ -25,8 +26,8 @@ from playwright.sync_api import sync_playwright, Page, Browser
 # Configuration
 KONG_URL = "http://localhost:8000"
 TASKS_API_URL = f"{KONG_URL}/api/v1/tasks"
-PROVIDERS_API_URL = f"{KONG_URL}/api/v1/providers"
-SAMPLE_SITE_URL = "http://192.168.8.16:5001"
+TASKS_SERVICE_URL = "http://localhost:8002"  # Direct tasks service URL
+SAMPLE_SITE_URL = "http://localhost:5001"
 
 class TaskScenario(Enum):
     VQA_POSITIVE_CONSENSUS = "vqa_positive_consensus"
@@ -50,7 +51,7 @@ class TestResult:
 
 def complete_task_worker(args_tuple):
     """Worker function for multiprocessing"""
-    (session_index, task_id, scenario, browserless_url, provider_api_key) = args_tuple
+    (session_index, task_id, scenario, browserless_url) = args_tuple
     
     session_id = str(uuid.uuid4())
     start_time = datetime.utcnow()
@@ -199,242 +200,250 @@ def check_hotlabel_modal(page: Page, session_index: int) -> int:
     return tasks_completed
 
 def complete_quiz_flow(page: Page, session_index: int):
-    """Complete the quiz flow"""
+    """Complete the quiz flow on the page"""
     try:
         # Look for Start Quiz button
-        print(f"    [Session {session_index}] Looking for Start Quiz button...")
-        start_button = page.wait_for_selector("button:has-text('Start Quiz')", timeout=10000)
-        if start_button:
-            print(f"    [Session {session_index}] Clicking Start Quiz...")
-            start_button.click()
+        start_button_selectors = [
+            "button:has-text('Start Quiz')",
+            "button[type='submit']",
+            "a:has-text('Start Quiz')"
+        ]
         
-        # Wait for quiz page
-        page.wait_for_selector("form", timeout=10000)
-        print(f"    [Session {session_index}] Quiz page loaded")
+        for selector in start_button_selectors:
+            try:
+                button = page.wait_for_selector(selector, timeout=3000)
+                if button:
+                    print(f"      [Session {session_index}] Found start button: {selector}")
+                    button.click()
+                    break
+            except:
+                continue
+        
+        # Wait for quiz page to load
+        time.sleep(3)
         
         # Complete quiz questions
-        radio_buttons = page.query_selector_all("input[type='radio']")
-        questions = {}
-        for radio in radio_buttons:
-            name = radio.get_attribute("name")
-            if name not in questions:
-                questions[name] = []
-            questions[name].append(radio)
+        quiz_selectors = [
+            "input[type='radio']",
+            "input[type='checkbox']",
+            "select",
+            "textarea"
+        ]
         
-        for question_name, radios in questions.items():
-            if radios:
-                selected_radio = random.choice(radios)
-                selected_radio.click()
-                time.sleep(0.5)
+        for selector in quiz_selectors:
+            try:
+                elements = page.query_selector_all(selector)
+                for element in elements:
+                    if element.is_visible() and element.is_enabled():
+                        if element.tag_name == "input" and element.get_attribute("type") == "radio":
+                            element.click()
+                        elif element.tag_name == "input" and element.get_attribute("type") == "checkbox":
+                            element.click()
+                        elif element.tag_name == "select":
+                            options = element.query_selector_all("option")
+                            if options:
+                                options[0].click()
+                        elif element.tag_name == "textarea":
+                            element.fill("Test response")
+            except Exception as e:
+                print(f"      [Session {session_index}] Error with quiz selector {selector}: {e}")
+                continue
         
         # Submit quiz
-        submit_button = page.wait_for_selector("button[type='submit']")
-        submit_button.click()
+        submit_selectors = [
+            "button:has-text('Submit')",
+            "button[type='submit']",
+            "input[type='submit']"
+        ]
+        
+        for selector in submit_selectors:
+            try:
+                submit_button = page.wait_for_selector(selector, timeout=3000)
+                if submit_button:
+                    print(f"      [Session {session_index}] Found submit button: {selector}")
+                    submit_button.click()
+                    break
+            except:
+                continue
         
         # Wait for result page
-        page.wait_for_load_state("networkidle")
-        print(f"    [Session {session_index}] Result page loaded")
+        time.sleep(3)
         
     except Exception as e:
-        print(f"    [Session {session_index}] Error in quiz flow: {e}")
+        print(f"      [Session {session_index}] Error completing quiz flow: {e}")
 
 def setup_test_environment():
-    """Set up provider and tasks"""
-    print("--- Setting up test environment ---")
+    """Set up the test environment with existing tasks"""
+    print("Setting up test environment...")
     
-    # Register provider
-    provider_data = {
-        "name": "Headless Stress Test Provider (MP)",
-        "contact_email": f"headless_stress_test_provider_mp_{uuid.uuid4().hex[:8]}@example.com",
-        "description": "Provider for headless stress testing (multiprocessing)",
-        "website": "https://example.com/headless-stress-test-provider-mp"
-    }
-    
-    response = requests.post(PROVIDERS_API_URL, json=provider_data)
+    # Get existing tasks from database
+    response = requests.get(f"{TASKS_SERVICE_URL}/api/v1/tasks", headers={"X-API-Key": "internal-service"})
     if response.status_code >= 300:
-        raise Exception(f"Failed to register provider: {response.text}")
+        raise Exception(f"Failed to get existing tasks: {response.text}")
         
-    result = response.json()
-    provider_id = result["id"]
-    provider_api_key = result["api_key"]
-    print(f"Provider registered: {provider_id}")
+    tasks = response.json().get("items", [])
+    print(f"Found {len(tasks)} existing tasks in the database")
     
-    # Create tasks
+    # Filter for pending tasks only
+    pending_tasks = [task for task in tasks if task.get("status") == "pending"]
+    print(f"Found {len(pending_tasks)} pending tasks available for testing")
+    
+    if not pending_tasks:
+        raise Exception("No pending tasks found. Please run pull_TII_all_categories.py first.")
+    
+    # Select tasks for testing
+    selected_tasks = pending_tasks[:min(10, len(pending_tasks))]  # Use up to 10 tasks
+    
     task_ids = []
     scenario_results = {}
     
-    scenarios = [
-        TaskScenario.VQA_POSITIVE_CONSENSUS,
-        TaskScenario.VQA_NEGATIVE_CONSENSUS,
-        TaskScenario.VQA_AMBIGUOUS_CONSENSUS
-    ]
+    for task in selected_tasks:
+        task_ids.append(task["id"])
+        # Assign scenario based on task type
+        if task.get("task_type") == "true-false":
+            scenario_results[task["id"]] = TaskScenario.VQA_POSITIVE_CONSENSUS
+        elif task.get("task_type") == "numeric":
+            scenario_results[task["id"]] = TaskScenario.VQA_NEGATIVE_CONSENSUS
+        elif task.get("task_type") == "mcq":
+            scenario_results[task["id"]] = TaskScenario.VQA_AMBIGUOUS_CONSENSUS
+        else:
+            scenario_results[task["id"]] = TaskScenario.VQA_POSITIVE_CONSENSUS
     
-    for scenario in scenarios:
-        base_data = {
-            "title": f"Stress Test - {scenario.value}",
-            "description": f"Stress test task for {scenario.value} scenario",
-            "provider_id": provider_id,
-            "task_type": "true-false",
-            "category": "vqa",
-            "complexity_level": 1,
-            "topic": scenario.value.replace("vqa_", "").replace("_consensus", ""),
-            "agreement_threshold": 0.7,
-            "confidence_threshold": 0.6,
-            "status": "pending",
-            "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
-        }
-        
-        task_data = {
-            **base_data,
-            "content": {
-                "image_url": "https://s3-eu-north-1-derc-wmi-crowdlabel-production.s3.eu-north-1.amazonaws.com/tii_vqa_0whejvjm9blfgjb6.png",
-                "image_filename": "tii_vqa_0whejvjm9blfgjb6.png",
-                "question": "Is there anything else that is the same shape as the tiny blue rubber thing?"
-            },
-            "task": {
-                "text": "Is there anything else that is the same shape as the tiny blue rubber thing?",
-                "choices": [
-                    {"key": "a", "value": "True"},
-                    {"key": "b", "value": "False"}
-                ]
-            },
-            "track_id": f"t-headless-stress-test-mp-{scenario.value}"
-        }
-        
-        headers = {"X-API-Key": provider_api_key}
-        response = requests.post(TASKS_API_URL, json=task_data, headers=headers)
-        
-        if response.status_code >= 300:
-            print(f"Failed to create task for {scenario.value}: {response.text}")
-            continue
-            
-        result = response.json()
-        task_id = str(result["id"])
-        task_ids.append(task_id)
-        scenario_results[task_id] = scenario
-        
-        print(f"Created task {task_id} for scenario {scenario.value}")
+    print(f"Selected {len(selected_tasks)} tasks for stress testing:")
+    for task in selected_tasks:
+        print(f"  - Task ID: {task['id']}, Type: {task.get('task_type')}, Category: {task.get('category')}")
     
-    return provider_id, provider_api_key, task_ids, scenario_results
+    return task_ids, scenario_results
 
 def main():
     """Main function"""
-    parser = argparse.ArgumentParser(description="HotLabel System Headless Stress Test (Multiprocessing)")
-    parser.add_argument("--iterations", type=int, default=10, help="Number of sessions to run")
-    parser.add_argument("--concurrent", type=int, default=2, help="Number of concurrent processes")
-    parser.add_argument("--tasks-per-session", type=int, default=1, help="Number of tasks per session")
-    parser.add_argument("--browserless-url", type=str, default="ws://localhost:3000", help="Browserless service URL")
+    parser = argparse.ArgumentParser(description="HotLabel System Stress Test - Multiprocessing")
+    parser.add_argument("--iterations", type=int, default=20, help="Number of test iterations")
+    parser.add_argument("--concurrent", type=int, default=4, help="Number of concurrent processes")
+    parser.add_argument("--browserless-url", type=str, default="ws://localhost:3000", help="Browserless WebSocket URL")
     
     args = parser.parse_args()
     
-    print("HotLabel System Headless Stress Test - Multiprocessing")
-    print(f"Configuration:")
-    print(f"  Iterations: {args.iterations}")
-    print(f"  Concurrent processes: {args.concurrent}")
-    print(f"  Tasks per session: {args.tasks_per_session}")
-    print(f"  Browserless URL: {args.browserless_url}")
-    
-    start_time = datetime.utcnow()
+    print("=" * 80)
+    print(" HOTLABEL STRESS TEST - MULTIPROCESSING VERSION ".center(80, "="))
+    print("This test uses existing tasks from the database (created by pull_TII_all_categories.py)")
+    print("=" * 80)
     
     try:
         # Set up test environment
-        provider_id, provider_api_key, task_ids, scenario_results = setup_test_environment()
+        task_ids, scenario_results = setup_test_environment()
         
-        print(f"Created {len(task_ids)} tasks for testing")
-        print(f"Task IDs: {task_ids}")
+        if not task_ids:
+            print("ERROR: No tasks available for testing")
+            sys.exit(1)
         
-        # Prepare arguments for multiprocessing
-        args_list = []
+        print(f"\nRunning {args.iterations} iterations with {args.concurrent} concurrent processes...")
+        print(f"Browserless URL: {args.browserless_url}")
+        
+        # Prepare arguments for worker processes
+        worker_args = []
         for i in range(args.iterations):
-            selected_tasks = random.sample(task_ids, min(args.tasks_per_session, len(task_ids)))
-            for task_id in selected_tasks:
-                scenario = scenario_results[task_id]
-                args_list.append((i + 1, task_id, scenario, args.browserless_url, provider_api_key))
+            task_id = random.choice(task_ids)
+            scenario = scenario_results.get(task_id, TaskScenario.VQA_POSITIVE_CONSENSUS)
+            worker_args.append((i, task_id, scenario, args.browserless_url))
         
-        # Run stress test with multiprocessing
-        test_results = []
+        # Run tests with multiprocessing
+        results = []
+        start_time = datetime.utcnow()
+        
         with ProcessPoolExecutor(max_workers=args.concurrent) as executor:
-            future_to_args = {executor.submit(complete_task_worker, args_tuple): args_tuple for args_tuple in args_list}
+            # Submit all tasks
+            future_to_session = {
+                executor.submit(complete_task_worker, args_tuple): args_tuple[0]
+                for args_tuple in worker_args
+            }
             
-            for future in as_completed(future_to_args):
-                args_tuple = future_to_args[future]
-                session_index = args_tuple[0]
+            # Collect results
+            for future in as_completed(future_to_session):
+                session_index = future_to_session[future]
                 try:
                     result = future.result()
-                    test_results.append(result)
-                    print(f"Completed session {session_index}: {'Success' if result.success else 'Failed'}")
+                    results.append(result)
+                    print(f"    [Session {session_index}] Completed: {result.success}")
                 except Exception as e:
-                    print(f"Session {session_index} failed with exception: {e}")
-                    failed_result = TestResult(
-                        session_id=str(uuid.uuid4()),
-                        task_id=args_tuple[1],
-                        scenario=args_tuple[2].value,
-                        start_time=datetime.utcnow(),
-                        end_time=datetime.utcnow(),
-                        success=False,
-                        error_message=str(e)
-                    )
-                    test_results.append(failed_result)
+                    print(f"    [Session {session_index}] Failed: {e}")
         
-        # Calculate results
-        successful_count = len([r for r in test_results if r.success])
-        failed_count = len([r for r in test_results if not r.success])
-        hotlabel_modals_found = len([r for r in test_results if r.hotlabel_modal_found])
-        hotlabel_tasks_completed = sum([r.hotlabel_tasks_completed for r in test_results])
+        end_time = datetime.utcnow()
+        
+        # Calculate metrics
+        successful_results = [r for r in results if r.success]
+        failed_results = [r for r in results if not r.success]
+        
+        total_hotlabel_tasks = sum(r.hotlabel_tasks_completed for r in results)
+        total_modal_found = sum(1 for r in results if r.hotlabel_modal_found)
         
         # Print results
-        end_time = datetime.utcnow()
         print("\n" + "=" * 80)
-        print("Headless Stress Test Results (Multiprocessing)")
+        print(" STRESS TEST RESULTS ".center(80, "="))
         print("=" * 80)
         
-        print(f"Test Duration: {end_time - start_time}")
-        print(f"Total Sessions: {args.iterations}")
-        print(f"Successful: {successful_count}")
-        print(f"Failed: {failed_count}")
-        print(f"Success Rate: {(successful_count / len(test_results) * 100):.2f}%")
-        print(f"HotLabel Modals Found: {hotlabel_modals_found}")
-        print(f"HotLabel Tasks Completed: {hotlabel_tasks_completed}")
+        print(f"Test Duration: {(end_time - start_time).total_seconds():.2f} seconds")
+        print(f"Total Sessions: {len(results)}")
+        print(f"Successful Sessions: {len(successful_results)}")
+        print(f"Failed Sessions: {len(failed_results)}")
+        print(f"Success Rate: {(len(successful_results) / len(results) * 100):.1f}%" if results else "N/A")
+        
+        if successful_results:
+            avg_response_time = statistics.mean([r.response_time_ms for r in successful_results if r.response_time_ms])
+            print(f"Average Response Time: {avg_response_time:.0f}ms")
+        
+        print(f"HotLabel Modals Found: {total_modal_found}")
+        print(f"HotLabel Tasks Completed: {total_hotlabel_tasks}")
         
         # Save results
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"headless_stress_test_mp_results_{timestamp}.json"
         
         results_data = {
             "test_config": {
                 "iterations": args.iterations,
                 "concurrent": args.concurrent,
-                "tasks_per_session": args.tasks_per_session,
                 "browserless_url": args.browserless_url
             },
-            "test_duration": str(end_time - start_time),
-            "results": {
-                "total_sessions": args.iterations,
-                "successful": successful_count,
-                "failed": failed_count,
-                "success_rate": (successful_count / len(test_results) * 100),
-                "hotlabel_modals_found": hotlabel_modals_found,
-                "hotlabel_tasks_completed": hotlabel_tasks_completed
+            "test_duration": {
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "duration_seconds": (end_time - start_time).total_seconds()
             },
-            "test_results": [asdict(r) for r in test_results],
-            "provider_id": provider_id,
-            "task_ids": task_ids
+            "results": [
+                {
+                    "session_id": r.session_id,
+                    "task_id": r.task_id,
+                    "scenario": r.scenario,
+                    "success": r.success,
+                    "response_time_ms": r.response_time_ms,
+                    "hotlabel_modal_found": r.hotlabel_modal_found,
+                    "hotlabel_tasks_completed": r.hotlabel_tasks_completed,
+                    "page_title": r.page_title,
+                    "page_url": r.page_url,
+                    "error_message": r.error_message
+                }
+                for r in results
+            ],
+            "summary": {
+                "total_sessions": len(results),
+                "successful_sessions": len(successful_results),
+                "failed_sessions": len(failed_results),
+                "success_rate": len(successful_results) / len(results) if results else 0,
+                "total_hotlabel_tasks": total_hotlabel_tasks,
+                "total_modal_found": total_modal_found
+            }
         }
         
         with open(filename, 'w') as f:
-            json.dump(results_data, f, indent=2, default=str)
+            json.dump(results_data, f, indent=2)
         
         print(f"\nResults saved to: {filename}")
+        print("\nTest completed successfully!")
         
     except Exception as e:
-        print(f"Headless stress test failed: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"ERROR: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Set multiprocessing start method for macOS compatibility
-    if sys.platform == "darwin":
-        mp.set_start_method('spawn', force=True)
-    
     main() 

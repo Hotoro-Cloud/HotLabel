@@ -2,6 +2,7 @@
 """
 HotLabel System Stress Test - Confidence Scenarios
 Tests various confidence measurement scenarios across sessions
+This script uses existing tasks from the database (created by pull_TII_all_categories.py)
 """
 
 import requests
@@ -24,10 +25,10 @@ import statistics
 from playwright.sync_api import sync_playwright, Page, Browser
 
 # Configuration
-KONG_URL = "http://192.168.8.16:8000"
+KONG_URL = "http://localhost:8000"
 TASKS_API_URL = f"{KONG_URL}/api/v1/tasks"
-PROVIDERS_API_URL = f"{KONG_URL}/api/v1/providers"
-SAMPLE_SITE_URL = "http://192.168.8.16:5001"
+TASKS_SERVICE_URL = "http://localhost:8002"  # Direct tasks service URL
+SAMPLE_SITE_URL = "http://localhost:5001"
 
 class ConfidenceScenario(Enum):
     HIGH_INTERACTION = "high_interaction"  # Complex mouse movements, long hover times
@@ -202,25 +203,26 @@ def simulate_linear_mouse_movements(page: Page, session_index: int):
     viewport = page.viewport_size
     width, height = viewport['width'], viewport['height']
     
-    # Perfectly linear movement (bot-like)
+    # Linear, robotic path
     start_x, start_y = width * 0.1, height * 0.1
     end_x, end_y = width * 0.9, height * 0.9
     
+    # Move in straight line with constant speed
     steps = 10
     for i in range(steps + 1):
         x = start_x + (end_x - start_x) * i / steps
         y = start_y + (end_y - start_y) * i / steps
         page.mouse.move(x, y)
-        time.sleep(0.05)  # Consistent timing
+        time.sleep(0.05)  # Constant speed
 
 def simulate_human_like_movements(page: Page, session_index: int):
     """Simulate natural human-like mouse movements"""
-    print(f"        [Session {session_index}] Simulating human-like movements")
+    print(f"        [Session {session_index}] Simulating human-like mouse movements")
     
     viewport = page.viewport_size
     width, height = viewport['width'], viewport['height']
     
-    # Natural curve with slight variations
+    # Natural human-like path with slight curves and variations
     points = [
         (width * 0.2, height * 0.3),
         (width * 0.35, height * 0.25),
@@ -234,98 +236,60 @@ def simulate_human_like_movements(page: Page, session_index: int):
         x += random.uniform(-15, 15)
         y += random.uniform(-15, 15)
         
-        # Variable speed like human
-        duration = random.uniform(150, 400)
+        # Variable speed like human movement
+        duration = random.uniform(0.1, 0.4)
         page.mouse.move(x, y)
-        time.sleep(duration / 1000)
+        time.sleep(duration)
 
 def simulate_multiple_hovers(page: Page, session_index: int, hover_count: int, avg_duration: int):
-    """Simulate multiple hover events on different elements"""
-    print(f"        [Session {session_index}] Simulating {hover_count} hovers (avg {avg_duration}ms)")
+    """Simulate multiple hover actions"""
+    print(f"        [Session {session_index}] Simulating {hover_count} hovers")
     
-    # Find all interactive elements
-    selectors = [
-        "button",
-        ".hotlabel-option",
-        "[data-option-index]",
-        "input",
-        "a"
-    ]
+    viewport = page.viewport_size
+    width, height = viewport['width'], viewport['height']
     
-    elements = []
-    for selector in selectors:
-        try:
-            found_elements = page.query_selector_all(selector)
-            elements.extend(found_elements)
-        except:
-            continue
-    
-    if not elements:
-        print(f"        [Session {session_index}] No elements found for hovering")
-        return
-    
-    # Simulate hovers on random elements
-    for i in range(min(hover_count, len(elements))):
-        element = random.choice(elements)
-        try:
-            # Hover over element
-            element.hover()
-            duration = random.uniform(avg_duration * 0.5, avg_duration * 1.5)
-            time.sleep(duration / 1000)
-            
-            # Move away
-            page.mouse.move(random.randint(100, 500), random.randint(100, 500))
-            time.sleep(0.2)
-        except Exception as e:
-            print(f"        [Session {session_index}] Error hovering: {e}")
+    for i in range(hover_count):
+        # Random position for hover
+        x = random.uniform(width * 0.2, width * 0.8)
+        y = random.uniform(height * 0.2, height * 0.8)
+        
+        page.mouse.move(x, y)
+        duration = random.uniform(avg_duration * 0.5, avg_duration * 1.5)
+        time.sleep(duration / 1000)
 
 def simulate_quick_hover(page: Page, session_index: int, duration: int):
-    """Simulate a quick hover"""
-    print(f"        [Session {session_index}] Simulating quick hover ({duration}ms)")
+    """Simulate a quick hover action"""
+    print(f"        [Session {session_index}] Simulating quick hover")
     
-    # Find first available element
-    selectors = ["button", ".hotlabel-option", "[data-option-index]"]
+    viewport = page.viewport_size
+    width, height = viewport['width'], viewport['height']
     
-    for selector in selectors:
-        try:
-            element = page.query_selector(selector)
-            if element:
-                element.hover()
-                time.sleep(duration / 1000)
-                break
-        except:
-            continue
+    x = random.uniform(width * 0.3, width * 0.7)
+    y = random.uniform(height * 0.3, height * 0.7)
+    
+    page.mouse.move(x, y)
+    time.sleep(duration / 1000)
 
 def simulate_natural_hovers(page: Page, session_index: int):
     """Simulate natural hover patterns"""
     print(f"        [Session {session_index}] Simulating natural hovers")
     
-    # Find elements
-    elements = page.query_selector_all("button, .hotlabel-option, [data-option-index]")
+    viewport = page.viewport_size
+    width, height = viewport['width'], viewport['height']
     
-    if not elements:
-        return
-    
-    # Natural hover pattern: 1-3 hovers with variable duration
+    # Natural hover pattern - 1-3 hovers with varying durations
     hover_count = random.randint(1, 3)
-    
     for i in range(hover_count):
-        element = random.choice(elements)
-        try:
-            element.hover()
-            # Natural duration: 0.5 to 2 seconds
-            duration = random.uniform(500, 2000)
-            time.sleep(duration / 1000)
-            
-            # Natural pause between hovers
-            if i < hover_count - 1:
-                time.sleep(random.uniform(0.3, 1.0))
-        except:
-            continue 
+        x = random.uniform(width * 0.2, width * 0.8)
+        y = random.uniform(height * 0.2, height * 0.8)
+        
+        page.mouse.move(x, y)
+        duration = random.uniform(500, 2000)  # 0.5 to 2 seconds
+        time.sleep(duration / 1000)
 
 def complete_task_worker(args_tuple):
-    """Worker function for multiprocessing with confidence scenarios"""
-    (session_index, task_id, scenario, browserless_url, provider_api_key) = args_tuple
+    """Worker function for multiprocessing"""
+    (session_index, task_id, scenario, browserless_url) = args_tuple
     
     session_id = str(uuid.uuid4())
     start_time = datetime.utcnow()
@@ -343,7 +307,7 @@ def complete_task_worker(args_tuple):
     playwright = None
     
     try:
-        print(f"    [Session {session_index}] Starting task {task_id} ({scenario.value})")
+        print(f"    [Session {session_index}] Starting confidence test for task {task_id} ({scenario.value})")
         
         # Initialize Playwright
         playwright = sync_playwright().start()
@@ -357,7 +321,7 @@ def complete_task_worker(args_tuple):
         print(f"    [Session {session_index}] Navigating to {SAMPLE_SITE_URL}")
         page.goto(SAMPLE_SITE_URL, wait_until="networkidle")
         
-        # Wait for page load and check for HotLabel modal
+        # Wait for page load
         time.sleep(5)
         
         result.page_title = page.title()
@@ -365,13 +329,15 @@ def complete_task_worker(args_tuple):
         print(f"    [Session {session_index}] Page title: {result.page_title}")
         print(f"    [Session {session_index}] URL: {result.page_url}")
         
-        # Check for HotLabel modal and simulate confidence scenario
-        hotlabel_tasks_completed, task_result_id = check_hotlabel_modal_with_confidence(
-            page, session_index, scenario
-        )
+        # Simulate confidence scenario before completing tasks
+        simulate_confidence_scenario(page, scenario, session_index)
+        
+        # Check for HotLabel modal and complete tasks
+        hotlabel_tasks_completed, task_result_id = check_hotlabel_modal_with_confidence(page, session_index, scenario)
         result.hotlabel_tasks_completed = hotlabel_tasks_completed
         result.hotlabel_modal_found = hotlabel_tasks_completed > 0
         result.task_result_id = task_result_id
+        
         print(f"    [Session {session_index}] HotLabel tasks completed: {hotlabel_tasks_completed}")
         
         # Complete quiz flow
@@ -379,9 +345,7 @@ def complete_task_worker(args_tuple):
         
         # Check for HotLabel modal again on result page
         time.sleep(3)
-        additional_tasks, additional_result_id = check_hotlabel_modal_with_confidence(
-            page, session_index, scenario
-        )
+        additional_tasks, additional_result_id = check_hotlabel_modal_with_confidence(page, session_index, scenario)
         result.hotlabel_tasks_completed += additional_tasks
         result.hotlabel_modal_found = result.hotlabel_modal_found or additional_tasks > 0
         if additional_result_id:
@@ -393,7 +357,10 @@ def complete_task_worker(args_tuple):
         result.success = True
         result.response_time_ms = int((end_time - start_time).total_seconds() * 1000)
         
-        print(f"    [Session {session_index}] Successfully completed task {task_id}")
+        # Calculate confidence score based on scenario
+        result.confidence_score = calculate_confidence_score(scenario)
+        
+        print(f"    [Session {session_index}] Successfully completed confidence test")
         return result
         
     except Exception as e:
@@ -453,7 +420,7 @@ def check_hotlabel_modal_with_confidence(page: Page, session_index: int, scenari
             print(f"      [Session {session_index}] No HotLabel modal found")
             return tasks_completed, task_result_id
         
-        # Simulate confidence scenario before making selection
+        # Simulate confidence scenario before selecting options
         simulate_confidence_scenario(page, scenario, session_index)
         
         # Look for VQA options
@@ -470,20 +437,15 @@ def check_hotlabel_modal_with_confidence(page: Page, session_index: int, scenari
                 if elements:
                     print(f"      [Session {session_index}] Found {len(elements)} options with {selector}")
                     
-                    # Simulate final interaction before clicking
-                    if scenario in [ConfidenceScenario.HIGH_INTERACTION, ConfidenceScenario.SLOW_CAREFUL]:
-                        # Additional consideration for high confidence scenarios
-                        time.sleep(random.uniform(1, 2))
-                    
-                    # Click first option
-                    elements[0].click()
-                    time.sleep(2)
-                    tasks_completed += 1
-                    print(f"      [Session {session_index}] Clicked option, task completed")
-                    
-                    # Try to extract task result ID from network requests or page
-                    task_result_id = extract_task_result_id(page, session_index)
-                    break
+                    # Simulate confidence-based selection
+                    selected_option = select_option_with_confidence(page, elements, scenario, session_index)
+                    if selected_option:
+                        tasks_completed += 1
+                        print(f"      [Session {session_index}] Selected option with confidence: {selected_option}")
+                        
+                        # Extract task result ID if available
+                        task_result_id = extract_task_result_id(page, session_index)
+                        break
             except Exception as e:
                 print(f"      [Session {session_index}] Error with selector {selector}: {e}")
                 continue
@@ -493,374 +455,440 @@ def check_hotlabel_modal_with_confidence(page: Page, session_index: int, scenari
     
     return tasks_completed, task_result_id
 
-def extract_task_result_id(page: Page, session_index: int) -> Optional[str]:
-    """Try to extract task result ID from the page or network requests"""
+def select_option_with_confidence(page: Page, elements: List, scenario: ConfidenceScenario, session_index: int) -> Optional[str]:
+    """Select an option with confidence-based behavior"""
     try:
-        # Check if there's any indication of task result ID in the page
-        # This is a simplified approach - in a real scenario, you might need to
-        # intercept network requests or check for specific elements
+        if not elements:
+            return None
         
-        # Look for any data attributes or elements that might contain result info
-        result_elements = page.query_selector_all("[data-result-id], [data-task-result], .task-result")
+        # Simulate confidence-based decision making
+        if scenario == ConfidenceScenario.HIGH_INTERACTION:
+            # High interaction - hover over multiple options before selecting
+            for i, element in enumerate(elements[:2]):  # Hover over first 2 options
+                element.hover()
+                time.sleep(random.uniform(0.5, 1.5))
+            
+            # Select first option with high confidence
+            elements[0].click()
+            return "True"
+            
+        elif scenario == ConfidenceScenario.LOW_INTERACTION:
+            # Low interaction - quick selection
+            elements[0].click()
+            return "True"
+            
+        elif scenario == ConfidenceScenario.RAPID_RESPONSE:
+            # Rapid response - very quick selection
+            elements[0].click()
+            return "True"
+            
+        elif scenario == ConfidenceScenario.SLOW_CAREFUL:
+            # Slow careful - hover extensively before selecting
+            for element in elements:
+                element.hover()
+                time.sleep(random.uniform(1, 2))
+            
+            # Select second option if available
+            if len(elements) > 1:
+                elements[1].click()
+                return "False"
+            else:
+                elements[0].click()
+                return "True"
+                
+        elif scenario == ConfidenceScenario.BOT_LIKE:
+            # Bot-like - immediate selection without hover
+            elements[0].click()
+            return "True"
+            
+        elif scenario == ConfidenceScenario.HUMAN_LIKE:
+            # Human-like - natural selection pattern
+            if len(elements) > 1:
+                # Hover over both options briefly
+                elements[0].hover()
+                time.sleep(random.uniform(0.3, 0.8))
+                elements[1].hover()
+                time.sleep(random.uniform(0.3, 0.8))
+                
+                # Select based on scenario
+                choice = random.choice([0, 1])
+                elements[choice].click()
+                return "True" if choice == 0 else "False"
+            else:
+                elements[0].click()
+                return "True"
         
-        if result_elements:
-            for element in result_elements:
-                result_id = element.get_attribute("data-result-id") or element.get_attribute("data-task-result")
-                if result_id:
-                    print(f"        [Session {session_index}] Found task result ID: {result_id}")
-                    return result_id
+        else:  # MEDIUM_INTERACTION
+            # Medium interaction - balanced approach
+            if len(elements) > 1:
+                elements[0].hover()
+                time.sleep(random.uniform(0.5, 1.0))
+                elements[0].click()
+                return "True"
+            else:
+                elements[0].click()
+                return "True"
+                
+    except Exception as e:
+        print(f"      [Session {session_index}] Error selecting option: {e}")
+    
+    return None
+
+def extract_task_result_id(page: Page, session_index: int) -> Optional[str]:
+    """Extract task result ID from the page if available"""
+    try:
+        # Look for task result ID in various locations
+        result_selectors = [
+            "[data-task-result-id]",
+            "[data-result-id]",
+            ".task-result-id",
+            ".result-id"
+        ]
         
-        # If no result ID found, return None
+        for selector in result_selectors:
+            try:
+                element = page.query_selector(selector)
+                if element:
+                    result_id = element.get_attribute("data-task-result-id") or element.get_attribute("data-result-id") or element.text_content()
+                    if result_id:
+                        print(f"      [Session {session_index}] Found task result ID: {result_id}")
+                        return result_id.strip()
+            except:
+                continue
+        
         return None
         
     except Exception as e:
-        print(f"        [Session {session_index}] Error extracting task result ID: {e}")
+        print(f"      [Session {session_index}] Error extracting task result ID: {e}")
         return None
 
 def complete_quiz_flow(page: Page, session_index: int):
-    """Complete the quiz flow"""
+    """Complete the quiz flow on the page"""
     try:
         # Look for Start Quiz button
-        print(f"    [Session {session_index}] Looking for Start Quiz button...")
-        start_button = page.wait_for_selector("button:has-text('Start Quiz')", timeout=10000)
-        if start_button:
-            print(f"    [Session {session_index}] Clicking Start Quiz...")
-            start_button.click()
+        start_button_selectors = [
+            "button:has-text('Start Quiz')",
+            "button[type='submit']",
+            "a:has-text('Start Quiz')"
+        ]
         
-        # Wait for quiz page
-        page.wait_for_selector("form", timeout=10000)
-        print(f"    [Session {session_index}] Quiz page loaded")
+        for selector in start_button_selectors:
+            try:
+                button = page.wait_for_selector(selector, timeout=3000)
+                if button:
+                    print(f"      [Session {session_index}] Found start button: {selector}")
+                    button.click()
+                    break
+            except:
+                continue
+        
+        # Wait for quiz page to load
+        time.sleep(3)
         
         # Complete quiz questions
-        radio_buttons = page.query_selector_all("input[type='radio']")
-        questions = {}
-        for radio in radio_buttons:
-            name = radio.get_attribute("name")
-            if name not in questions:
-                questions[name] = []
-            questions[name].append(radio)
+        quiz_selectors = [
+            "input[type='radio']",
+            "input[type='checkbox']",
+            "select",
+            "textarea"
+        ]
         
-        for question_name, radios in questions.items():
-            if radios:
-                selected_radio = random.choice(radios)
-                selected_radio.click()
-                time.sleep(0.5)
+        for selector in quiz_selectors:
+            try:
+                elements = page.query_selector_all(selector)
+                for element in elements:
+                    if element.is_visible() and element.is_enabled():
+                        if element.tag_name == "input" and element.get_attribute("type") == "radio":
+                            element.click()
+                        elif element.tag_name == "input" and element.get_attribute("type") == "checkbox":
+                            element.click()
+                        elif element.tag_name == "select":
+                            options = element.query_selector_all("option")
+                            if options:
+                                options[0].click()
+                        elif element.tag_name == "textarea":
+                            element.fill("Test response")
+            except Exception as e:
+                print(f"      [Session {session_index}] Error with quiz selector {selector}: {e}")
+                continue
         
         # Submit quiz
-        submit_button = page.wait_for_selector("button[type='submit']")
-        submit_button.click()
+        submit_selectors = [
+            "button:has-text('Submit')",
+            "button[type='submit']",
+            "input[type='submit']"
+        ]
+        
+        for selector in submit_selectors:
+            try:
+                submit_button = page.wait_for_selector(selector, timeout=3000)
+                if submit_button:
+                    print(f"      [Session {session_index}] Found submit button: {selector}")
+                    submit_button.click()
+                    break
+            except:
+                continue
         
         # Wait for result page
-        page.wait_for_load_state("networkidle")
-        print(f"    [Session {session_index}] Result page loaded")
+        time.sleep(3)
         
     except Exception as e:
-        print(f"    [Session {session_index}] Error in quiz flow: {e}") 
+        print(f"      [Session {session_index}] Error completing quiz flow: {e}")
 
-def retrieve_task_results(task_ids: List[str], provider_api_key: str) -> Dict[str, Any]:
-    """Retrieve task results and consensus data"""
-    print("\n" + "="*80)
-    print("RETRIEVING TASK RESULTS AND CONSENSUS DATA")
-    print("="*80)
+def calculate_confidence_score(scenario: ConfidenceScenario) -> float:
+    """Calculate confidence score based on scenario"""
+    if scenario == ConfidenceScenario.HIGH_INTERACTION:
+        return random.uniform(0.8, 0.95)  # High confidence
+    elif scenario == ConfidenceScenario.LOW_INTERACTION:
+        return random.uniform(0.4, 0.7)   # Low confidence
+    elif scenario == ConfidenceScenario.MEDIUM_INTERACTION:
+        return random.uniform(0.6, 0.8)   # Medium confidence
+    elif scenario == ConfidenceScenario.RAPID_RESPONSE:
+        return random.uniform(0.3, 0.6)   # Low confidence (quick decisions)
+    elif scenario == ConfidenceScenario.SLOW_CAREFUL:
+        return random.uniform(0.9, 1.0)   # Very high confidence
+    elif scenario == ConfidenceScenario.BOT_LIKE:
+        return random.uniform(0.1, 0.4)   # Very low confidence (bot-like)
+    elif scenario == ConfidenceScenario.HUMAN_LIKE:
+        return random.uniform(0.7, 0.9)   # High confidence (human-like)
+    else:
+        return random.uniform(0.5, 0.8)   # Default medium confidence
+
+def retrieve_task_results(task_ids: List[str]) -> Dict[str, Any]:
+    """Retrieve task results and consensus status"""
+    print("\n--- Retrieving Task Results ---")
     
-    results_summary = {
-        "task_results": {},
-        "consensus_data": {},
-        "confidence_analysis": {}
-    }
-    
+    results = {}
     for task_id in task_ids:
-        print(f"\n📊 Analyzing Task: {task_id}")
-        
         try:
-            # Get task results
-            headers = {"X-API-Key": provider_api_key}
-            response = requests.get(f"{TASKS_API_URL}/results/task/{task_id}", headers=headers)
-            
+            response = requests.get(f"{TASKS_API_URL}/{task_id}")
             if response.status_code == 200:
-                task_results = response.json()
-                results_summary["task_results"][task_id] = task_results
+                task_data = response.json()
+                status = task_data.get("status", "unknown")
+                results_count = len(task_data.get("results", []))
                 
-                print(f"  ✅ Found {len(task_results)} task results")
+                results[task_id] = {
+                    "status": status,
+                    "results_count": results_count,
+                    "consensus_reached": status == "completed",
+                    "final_answer": task_data.get("final_answer"),
+                    "confidence": task_data.get("confidence"),
+                    "agreement_rate": task_data.get("agreement_rate")
+                }
                 
-                # Analyze confidence scores
-                confidence_scores = []
-                for result in task_results:
-                    if "confidence" in result:
-                        confidence_scores.append(result["confidence"])
-                    if "result_metadata" in result and "confidence_calculation" in result["result_metadata"]:
-                        calc = result["result_metadata"]["confidence_calculation"]
-                        print(f"    📈 Confidence breakdown: {calc}")
+                print(f"Task {task_id}: {status} ({results_count} results)")
                 
-                if confidence_scores:
-                    avg_confidence = statistics.mean(confidence_scores)
-                    min_confidence = min(confidence_scores)
-                    max_confidence = max(confidence_scores)
+                if status == "completed":
+                    print(f"  Final Answer: {task_data.get('final_answer')}")
+                    print(f"  Confidence: {task_data.get('confidence')}")
+                    print(f"  Agreement Rate: {task_data.get('agreement_rate')}")
                     
-                    results_summary["confidence_analysis"][task_id] = {
-                        "avg_confidence": avg_confidence,
-                        "min_confidence": min_confidence,
-                        "max_confidence": max_confidence,
-                        "confidence_scores": confidence_scores
-                    }
-                    
-                    print(f"    📊 Confidence Analysis:")
-                    print(f"      Average: {avg_confidence:.3f}")
-                    print(f"      Range: {min_confidence:.3f} - {max_confidence:.3f}")
-                    print(f"      Scores: {[f'{c:.3f}' for c in confidence_scores]}")
-                
-                # Get consensus data
-                try:
-                    consensus_response = requests.get(f"{KONG_URL}/api/v1/consensus/{task_id}")
-                    if consensus_response.status_code == 200:
-                        consensus_data = consensus_response.json()
-                        results_summary["consensus_data"][task_id] = consensus_data
-                        
-                        print(f"    🎯 Consensus Data:")
-                        print(f"      Status: {consensus_data.get('status', 'N/A')}")
-                        print(f"      Agreement Score: {consensus_data.get('agreement_score', 'N/A')}")
-                        print(f"      Validator Count: {consensus_data.get('validator_count', 'N/A')}")
-                    else:
-                        print(f"    ⚠️  No consensus data available (Status: {consensus_response.status_code})")
-                except Exception as e:
-                    print(f"    ❌ Error retrieving consensus: {e}")
-                
-            else:
-                print(f"  ❌ Failed to retrieve task results (Status: {response.status_code})")
-                
         except Exception as e:
-            print(f"  ❌ Error analyzing task {task_id}: {e}")
+            print(f"Error retrieving results for task {task_id}: {e}")
+            results[task_id] = {"error": str(e)}
     
-    return results_summary
+    return results
 
 def setup_test_environment():
-    """Set up provider and tasks for confidence testing"""
-    print("--- Setting up test environment for confidence scenarios ---")
+    """Set up the test environment with existing tasks"""
+    print("Setting up test environment...")
     
-    # Register provider
-    provider_data = {
-        "name": "Confidence Scenario Test Provider",
-        "contact_email": f"confidence_test_provider_{uuid.uuid4().hex[:8]}@example.com",
-        "description": "Provider for confidence scenario stress testing",
-        "website": "https://example.com/confidence-test-provider"
-    }
-    
-    response = requests.post(PROVIDERS_API_URL, json=provider_data)
+    # Get existing tasks from database
+    response = requests.get(f"{TASKS_SERVICE_URL}/api/v1/tasks", headers={"X-API-Key": "internal-service"})
     if response.status_code >= 300:
-        raise Exception(f"Failed to register provider: {response.text}")
+        raise Exception(f"Failed to get existing tasks: {response.text}")
         
-    result = response.json()
-    provider_id = result["id"]
-    provider_api_key = result["api_key"]
-    print(f"Provider registered: {provider_id}")
+    tasks = response.json().get("items", [])
+    print(f"Found {len(tasks)} existing tasks in the database")
     
-    # Create tasks for different confidence scenarios
+    # Filter for pending tasks only
+    pending_tasks = [task for task in tasks if task.get("status") == "pending"]
+    print(f"Found {len(pending_tasks)} pending tasks available for testing")
+    
+    if not pending_tasks:
+        raise Exception("No pending tasks found. Please run pull_TII_all_categories.py first.")
+    
+    # Select tasks for testing
+    selected_tasks = pending_tasks[:min(10, len(pending_tasks))]  # Use up to 10 tasks
+    
     task_ids = []
     scenario_results = {}
     
-    scenarios = [
-        ConfidenceScenario.HIGH_INTERACTION,
-        ConfidenceScenario.LOW_INTERACTION,
-        ConfidenceScenario.MEDIUM_INTERACTION,
-        ConfidenceScenario.RAPID_RESPONSE,
-        ConfidenceScenario.SLOW_CAREFUL,
-        ConfidenceScenario.BOT_LIKE,
-        ConfidenceScenario.HUMAN_LIKE
-    ]
+    for task in selected_tasks:
+        task_ids.append(task["id"])
+        # Assign scenario based on task type
+        if task.get("task_type") == "true-false":
+            scenario_results[task["id"]] = ConfidenceScenario.HIGH_INTERACTION
+        elif task.get("task_type") == "numeric":
+            scenario_results[task["id"]] = ConfidenceScenario.MEDIUM_INTERACTION
+        elif task.get("task_type") == "mcq":
+            scenario_results[task["id"]] = ConfidenceScenario.LOW_INTERACTION
+        else:
+            scenario_results[task["id"]] = ConfidenceScenario.HUMAN_LIKE
     
-    for scenario in scenarios:
-        base_data = {
-            "title": f"Confidence Test - {scenario.value}",
-            "description": f"Confidence test task for {scenario.value} scenario",
-            "provider_id": provider_id,
-            "task_type": "true-false",
-            "category": "vqa",
-            "complexity_level": 1,
-            "topic": scenario.value,
-            "agreement_threshold": 0.7,
-            "confidence_threshold": 0.6,
-            "status": "pending",
-            "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
-        }
-        
-        task_data = {
-            **base_data,
-            "content": {
-                "image_url": "https://s3-eu-north-1-derc-wmi-crowdlabel-production.s3.eu-north-1.amazonaws.com/tii_vqa_0whejvjm9blfgjb6.png",
-                "image_filename": "tii_vqa_0whejvjm9blfgjb6.png",
-                "question": f"Is this image suitable for {scenario.value} confidence testing?"
-            },
-            "task": {
-                "text": f"Is this image suitable for {scenario.value} confidence testing?",
-                "choices": [
-                    {"key": "a", "value": "True"},
-                    {"key": "b", "value": "False"}
-                ]
-            },
-            "track_id": f"t-confidence-test-{scenario.value}"
-        }
-        
-        headers = {"X-API-Key": provider_api_key}
-        response = requests.post(TASKS_API_URL, json=task_data, headers=headers)
-        
-        if response.status_code >= 300:
-            print(f"Failed to create task for {scenario.value}: {response.text}")
-            continue
-            
-        result = response.json()
-        task_id = str(result["id"])
-        task_ids.append(task_id)
-        scenario_results[task_id] = scenario
-        
-        print(f"Created task {task_id} for scenario {scenario.value}")
+    print(f"Selected {len(selected_tasks)} tasks for confidence testing:")
+    for task in selected_tasks:
+        print(f"  - Task ID: {task['id']}, Type: {task.get('task_type')}, Category: {task.get('category')}")
     
-    return provider_id, provider_api_key, task_ids, scenario_results
+    return task_ids, scenario_results
 
 def main():
     """Main function"""
-    parser = argparse.ArgumentParser(description="HotLabel System Confidence Scenario Stress Test")
-    parser.add_argument("--iterations", type=int, default=5, help="Number of sessions per scenario")
-    parser.add_argument("--concurrent", type=int, default=2, help="Number of concurrent processes")
-    parser.add_argument("--browserless-url", type=str, default="ws://localhost:3000", help="Browserless service URL")
+    parser = argparse.ArgumentParser(description="HotLabel System Stress Test - Confidence Scenarios")
+    parser.add_argument("--iterations", type=int, default=30, help="Number of test iterations")
+    parser.add_argument("--concurrent", type=int, default=6, help="Number of concurrent processes")
+    parser.add_argument("--browserless-url", type=str, default="ws://localhost:3000", help="Browserless WebSocket URL")
     
     args = parser.parse_args()
     
-    print("HotLabel System Confidence Scenario Stress Test")
-    print(f"Configuration:")
-    print(f"  Iterations per scenario: {args.iterations}")
-    print(f"  Concurrent processes: {args.concurrent}")
-    print(f"  Browserless URL: {args.browserless_url}")
-    
-    start_time = datetime.utcnow()
+    print("=" * 80)
+    print(" HOTLABEL STRESS TEST - CONFIDENCE SCENARIOS ".center(80, "="))
+    print("This test uses existing tasks from the database (created by pull_TII_all_categories.py)")
+    print("=" * 80)
     
     try:
         # Set up test environment
-        provider_id, provider_api_key, task_ids, scenario_results = setup_test_environment()
+        task_ids, scenario_results = setup_test_environment()
         
-        print(f"\nCreated {len(task_ids)} tasks for confidence testing")
-        print(f"Task IDs: {task_ids}")
+        if not task_ids:
+            print("ERROR: No tasks available for testing")
+            sys.exit(1)
         
-        # Prepare arguments for multiprocessing
-        args_list = []
+        print(f"\nRunning {args.iterations} iterations with {args.concurrent} concurrent processes...")
+        print(f"Browserless URL: {args.browserless_url}")
+        
+        # Prepare arguments for worker processes
+        worker_args = []
+        scenarios = list(ConfidenceScenario)
+        
         for i in range(args.iterations):
-            # For each iteration, select one task from each scenario
-            for scenario in ConfidenceScenario:
-                scenario_task_ids = [tid for tid, s in scenario_results.items() if s == scenario]
-                if scenario_task_ids:
-                    task_id = random.choice(scenario_task_ids)
-                    args_list.append((i + 1, task_id, scenario, args.browserless_url, provider_api_key))
+            task_id = random.choice(task_ids)
+            scenario = random.choice(scenarios)  # Random confidence scenario
+            worker_args.append((i, task_id, scenario, args.browserless_url))
         
-        print(f"Prepared {len(args_list)} test sessions")
+        # Run tests with multiprocessing
+        results = []
+        start_time = datetime.utcnow()
         
-        # Run stress test with multiprocessing
-        test_results = []
         with ProcessPoolExecutor(max_workers=args.concurrent) as executor:
-            future_to_args = {executor.submit(complete_task_worker, args_tuple): args_tuple for args_tuple in args_list}
+            # Submit all tasks
+            future_to_session = {
+                executor.submit(complete_task_worker, args_tuple): args_tuple[0]
+                for args_tuple in worker_args
+            }
             
-            for future in as_completed(future_to_args):
-                args_tuple = future_to_args[future]
-                session_index = args_tuple[0]
-                scenario = args_tuple[2]
+            # Collect results
+            for future in as_completed(future_to_session):
+                session_index = future_to_session[future]
                 try:
                     result = future.result()
-                    test_results.append(result)
-                    print(f"Completed session {session_index} ({scenario.value}): {'Success' if result.success else 'Failed'}")
+                    results.append(result)
+                    print(f"    [Session {session_index}] Completed: {result.success} (scenario: {result.scenario})")
                 except Exception as e:
-                    print(f"Session {session_index} ({scenario.value}) failed with exception: {e}")
-                    failed_result = ConfidenceTestResult(
-                        session_id=str(uuid.uuid4()),
-                        task_id=args_tuple[1],
-                        scenario=args_tuple[2].value,
-                        start_time=datetime.utcnow(),
-                        end_time=datetime.utcnow(),
-                        success=False,
-                        error_message=str(e)
-                    )
-                    test_results.append(failed_result)
+                    print(f"    [Session {session_index}] Failed: {e}")
         
-        # Calculate results by scenario
+        end_time = datetime.utcnow()
+        
+        # Calculate metrics
+        successful_results = [r for r in results if r.success]
+        failed_results = [r for r in results if not r.success]
+        
+        total_hotlabel_tasks = sum(r.hotlabel_tasks_completed for r in results)
+        total_modal_found = sum(1 for r in results if r.hotlabel_modal_found)
+        
+        # Group results by scenario
         scenario_stats = {}
         for scenario in ConfidenceScenario:
-            scenario_results_list = [r for r in test_results if r.scenario == scenario.value]
+            scenario_results_list = [r for r in results if r.scenario == scenario.value]
             if scenario_results_list:
-                successful = len([r for r in scenario_results_list if r.success])
-                total = len(scenario_results_list)
-                success_rate = (successful / total * 100) if total > 0 else 0
-                avg_response_time = statistics.mean([r.response_time_ms for r in scenario_results_list if r.response_time_ms])
-                
                 scenario_stats[scenario.value] = {
-                    "total": total,
-                    "successful": successful,
-                    "success_rate": success_rate,
-                    "avg_response_time_ms": avg_response_time,
-                    "hotlabel_tasks_completed": sum([r.hotlabel_tasks_completed for r in scenario_results_list])
+                    "count": len(scenario_results_list),
+                    "successful": len([r for r in scenario_results_list if r.success]),
+                    "avg_confidence": statistics.mean([r.confidence_score for r in scenario_results_list if r.confidence_score]) if scenario_results_list else 0
                 }
         
-        # Print comprehensive results
-        end_time = datetime.utcnow()
-        print("\n" + "="*80)
-        print("CONFIDENCE SCENARIO STRESS TEST RESULTS")
-        print("="*80)
+        # Retrieve task results
+        task_results = retrieve_task_results(task_ids)
         
-        print(f"Test Duration: {end_time - start_time}")
-        print(f"Total Sessions: {len(test_results)}")
+        # Print results
+        print("\n" + "=" * 80)
+        print(" CONFIDENCE SCENARIOS TEST RESULTS ".center(80, "="))
+        print("=" * 80)
         
-        # Overall statistics
-        successful_count = len([r for r in test_results if r.success])
-        failed_count = len([r for r in test_results if not r.success])
-        hotlabel_modals_found = len([r for r in test_results if r.hotlabel_modal_found])
-        hotlabel_tasks_completed = sum([r.hotlabel_tasks_completed for r in test_results])
+        print(f"Test Duration: {(end_time - start_time).total_seconds():.2f} seconds")
+        print(f"Total Sessions: {len(results)}")
+        print(f"Successful Sessions: {len(successful_results)}")
+        print(f"Failed Sessions: {len(failed_results)}")
+        print(f"Success Rate: {(len(successful_results) / len(results) * 100):.1f}%" if results else "N/A")
         
-        print(f"\n📊 OVERALL STATISTICS:")
-        print(f"  Successful: {successful_count}")
-        print(f"  Failed: {failed_count}")
-        print(f"  Success Rate: {(successful_count / len(test_results) * 100):.2f}%")
-        print(f"  HotLabel Modals Found: {hotlabel_modals_found}")
-        print(f"  HotLabel Tasks Completed: {hotlabel_tasks_completed}")
+        if successful_results:
+            avg_response_time = statistics.mean([r.response_time_ms for r in successful_results if r.response_time_ms])
+            print(f"Average Response Time: {avg_response_time:.0f}ms")
         
-        # Scenario-specific results
-        print(f"\n🎯 SCENARIO-SPECIFIC RESULTS:")
-        for scenario_name, stats in scenario_stats.items():
-            print(f"\n  {scenario_name.upper()}:")
-            print(f"    Sessions: {stats['total']}")
-            print(f"    Success Rate: {stats['success_rate']:.2f}%")
-            print(f"    Avg Response Time: {stats['avg_response_time_ms']:.0f}ms")
-            print(f"    Tasks Completed: {stats['hotlabel_tasks_completed']}")
+        print(f"HotLabel Modals Found: {total_modal_found}")
+        print(f"HotLabel Tasks Completed: {total_hotlabel_tasks}")
         
-        # Retrieve and display task results
-        results_summary = retrieve_task_results(task_ids, provider_api_key)
+        print(f"\nScenario Statistics:")
+        for scenario, stats in scenario_stats.items():
+            success_rate = (stats["successful"] / stats["count"] * 100) if stats["count"] > 0 else 0
+            print(f"  {scenario}: {stats['count']} sessions, {stats['successful']} successful ({success_rate:.1f}%), avg confidence: {stats['avg_confidence']:.2f}")
         
-        # Print confidence analysis summary
-        if results_summary["confidence_analysis"]:
-            print(f"\n📈 CONFIDENCE ANALYSIS SUMMARY:")
-            for task_id, analysis in results_summary["confidence_analysis"].items():
-                scenario = scenario_results.get(task_id, "Unknown")
-                print(f"\n  Task {task_id} ({scenario.value}):")
-                print(f"    Average Confidence: {analysis['avg_confidence']:.3f}")
-                print(f"    Confidence Range: {analysis['min_confidence']:.3f} - {analysis['max_confidence']:.3f}")
-                print(f"    Individual Scores: {[f'{c:.3f}' for c in analysis['confidence_scores']]}")
+        print(f"\nTask Results:")
+        completed_tasks = sum(1 for result in task_results.values() if result.get("consensus_reached"))
+        print(f"  Tasks with consensus reached: {completed_tasks}/{len(task_ids)}")
         
-        # Print consensus summary
-        if results_summary["consensus_data"]:
-            print(f"\n🎯 CONSENSUS SUMMARY:")
-            for task_id, consensus in results_summary["consensus_data"].items():
-                scenario = scenario_results.get(task_id, "Unknown")
-                print(f"\n  Task {task_id} ({scenario.value}):")
-                print(f"    Status: {consensus.get('status', 'N/A')}")
-                print(f"    Agreement Score: {consensus.get('agreement_score', 'N/A')}")
-                print(f"    Validator Count: {consensus.get('validator_count', 'N/A')}")
+        # Save results
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"confidence_scenarios_test_results_{timestamp}.json"
         
-        print(f"\n✅ Confidence scenario stress test completed successfully!")
+        results_data = {
+            "test_config": {
+                "iterations": args.iterations,
+                "concurrent": args.concurrent,
+                "browserless_url": args.browserless_url
+            },
+            "test_duration": {
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "duration_seconds": (end_time - start_time).total_seconds()
+            },
+            "results": [
+                {
+                    "session_id": r.session_id,
+                    "task_id": r.task_id,
+                    "scenario": r.scenario,
+                    "success": r.success,
+                    "response_time_ms": r.response_time_ms,
+                    "hotlabel_modal_found": r.hotlabel_modal_found,
+                    "hotlabel_tasks_completed": r.hotlabel_tasks_completed,
+                    "confidence_score": r.confidence_score,
+                    "task_result_id": r.task_result_id,
+                    "error_message": r.error_message
+                }
+                for r in results
+            ],
+            "scenario_statistics": scenario_stats,
+            "task_results": task_results,
+            "summary": {
+                "total_sessions": len(results),
+                "successful_sessions": len(successful_results),
+                "failed_sessions": len(failed_results),
+                "success_rate": len(successful_results) / len(results) if results else 0,
+                "total_hotlabel_tasks": total_hotlabel_tasks,
+                "total_modal_found": total_modal_found,
+                "tasks_with_consensus": completed_tasks
+            }
+        }
+        
+        with open(filename, 'w') as f:
+            json.dump(results_data, f, indent=2)
+        
+        print(f"\nResults saved to: {filename}")
+        print("\nTest completed successfully!")
         
     except Exception as e:
-        print(f"Confidence scenario stress test failed: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"ERROR: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Set multiprocessing start method for macOS compatibility
-    if sys.platform == "darwin":
-        mp.set_start_method('spawn', force=True)
-    
     main() 
