@@ -24,10 +24,10 @@ import statistics
 from playwright.sync_api import sync_playwright, Page, Browser
 
 # Configuration
-KONG_URL = "http://localhost:8000"
+KONG_URL = "http://192.168.8.16:8000"
 TASKS_API_URL = f"{KONG_URL}/api/v1/tasks"
-TASKS_SERVICE_URL = "http://localhost:8002"  # Direct tasks service URL
-SAMPLE_SITE_URL = "http://localhost:5001"
+TASKS_SERVICE_URL = "http://192.168.8.16:8002"  # Direct tasks service URL
+SAMPLE_SITE_URL = "http://192.168.8.16:5001"
 
 class TaskScenario(Enum):
     VQA_POSITIVE_CONSENSUS = "vqa_positive_consensus"
@@ -235,15 +235,19 @@ def complete_quiz_flow(page: Page, session_index: int):
                 elements = page.query_selector_all(selector)
                 for element in elements:
                     if element.is_visible() and element.is_enabled():
-                        if element.tag_name == "input" and element.get_attribute("type") == "radio":
+                        # Get tag name using evaluate method
+                        tag_name = element.evaluate("el => el.tagName.toLowerCase()")
+                        element_type = element.get_attribute("type")
+                        
+                        if tag_name == "input" and element_type == "radio":
                             element.click()
-                        elif element.tag_name == "input" and element.get_attribute("type") == "checkbox":
+                        elif tag_name == "input" and element_type == "checkbox":
                             element.click()
-                        elif element.tag_name == "select":
+                        elif tag_name == "select":
                             options = element.query_selector_all("option")
                             if options:
                                 options[0].click()
-                        elif element.tag_name == "textarea":
+                        elif tag_name == "textarea":
                             element.fill("Test response")
             except Exception as e:
                 print(f"      [Session {session_index}] Error with quiz selector {selector}: {e}")
@@ -285,14 +289,14 @@ def setup_test_environment():
     print(f"Found {len(tasks)} existing tasks in the database")
     
     # Filter for pending tasks only
-    pending_tasks = [task for task in tasks if task.get("status") == "pending"]
-    print(f"Found {len(pending_tasks)} pending tasks available for testing")
+    assigned_tasks = [task for task in tasks if task.get("status") == "assigned"]
+    print(f"Found {len(assigned_tasks)} assigned tasks available for testing")
     
-    if not pending_tasks:
-        raise Exception("No pending tasks found. Please run pull_TII_all_categories.py first.")
+    if not assigned_tasks:
+        raise Exception("No assigned tasks found. Please run pull_TII_all_categories.py first.")
     
     # Select tasks for testing
-    selected_tasks = pending_tasks[:min(10, len(pending_tasks))]  # Use up to 10 tasks
+    selected_tasks = assigned_tasks[:min(10, len(assigned_tasks))]  # Use up to 10 tasks
     
     task_ids = []
     scenario_results = {}

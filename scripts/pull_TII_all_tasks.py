@@ -22,6 +22,7 @@ import os
 import time
 import urllib3
 import ssl
+import codecs
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from itertools import product
@@ -54,11 +55,11 @@ VERIFY_SSL = False
 # Task Service Configuration
 KONG_URL = "http://localhost:8000"  # Kong Gateway URL
 TASKS_BASE_URL = f"{KONG_URL}/api/v1/tasks"
-TASKS_API_KEY = "pk_UqY8BmXSHcGCa92Al1JyTyot64CvmyREW_i8x1sWo2s"  # Set your task service API key
+TASKS_API_KEY = "pk_whfzI-760cobvPcSC3Sa3xjT6PItvIcvZphTrWwIUm0"  # Set your task service API key
 TASKS_HEADERS = {"X-API-Key": TASKS_API_KEY}
 
 # Default provider ID (replace with your actual provider ID)
-DEFAULT_PROVIDER_ID = "fd65c9c9-03c9-4d5a-8367-0d6e4b759127"
+DEFAULT_PROVIDER_ID = "acbacb5e-49ac-4fe2-ab50-fc543d44fd1d"
 
 # TII API Categories and Options (from latest documentation)
 TII_CATEGORIES = ["vqa"]  # Visual Question Analysis
@@ -73,6 +74,61 @@ TII_COMPLEXITY_LEVELS = [1, 2, 3, 4]  # 1=least complex, 4=most complex
 
 # Rate limiting - delay between requests to avoid overwhelming the API
 REQUEST_DELAY = 1.0  # seconds
+
+
+def decode_unicode_escapes(text):
+    """
+    Decode Unicode escape sequences in text.
+    
+    Args:
+        text (str): Text that may contain Unicode escape sequences
+        
+    Returns:
+        str: Decoded text with proper Unicode characters
+    """
+    if not isinstance(text, str):
+        return text
+    
+    try:
+        # Handle Unicode escape sequences like \u0645\u0637\u0627\u0637
+        return codecs.decode(text, 'unicode_escape')
+    except (UnicodeDecodeError, ValueError):
+        # If decoding fails, return the original text
+        logger.warning(f"Failed to decode Unicode escapes in text: {text[:50]}...")
+        return text
+
+
+def process_choices(choices):
+    """
+    Process choices to decode Unicode escape sequences.
+    
+    Args:
+        choices: List of choice strings or dicts with 'label' or 'value' field
+        
+    Returns:
+        list: Processed choices with decoded Unicode
+    """
+    if not choices:
+        return choices
+    
+    processed_choices = []
+    for choice in choices:
+        if isinstance(choice, dict):
+            # Handle choice objects with 'label' or 'value' field
+            processed_choice = choice.copy()
+            if 'label' in choice:
+                processed_choice['label'] = decode_unicode_escapes(choice['label'])
+            if 'value' in choice:
+                processed_choice['value'] = decode_unicode_escapes(choice['value'])
+            processed_choices.append(processed_choice)
+        elif isinstance(choice, str):
+            # Handle simple string choices
+            processed_choices.append(decode_unicode_escapes(choice))
+        else:
+            # Handle other types as-is
+            processed_choices.append(choice)
+    
+    return processed_choices
 
 
 def build_query_params(category: Optional[str] = None, 
@@ -233,7 +289,7 @@ def transform_tii_to_task_format(tii_data: Dict[str, Any], provider_id: str = No
         logger.info("No language field found in response, using text-based detection")
         question_text = ""
         if "task" in tii_data and "text" in tii_data["task"]:
-            question_text = tii_data["task"]["text"]
+            question_text = decode_unicode_escapes(tii_data["task"]["text"])
             # Simple language detection based on Arabic characters
             if any('\u0600' <= char <= '\u06FF' for char in question_text) or \
                any('\u0750' <= char <= '\u077F' for char in question_text) or \
@@ -256,15 +312,17 @@ def transform_tii_to_task_format(tii_data: Dict[str, Any], provider_id: str = No
     # Get question text
     question = None
     if "task" in tii_data and "text" in tii_data["task"]:
-        question = tii_data["task"]["text"]
+        question = decode_unicode_escapes(tii_data["task"]["text"])
     
     # Get choices and transform them to the correct format
     options = []
     if "task" in tii_data and "choices" in tii_data["task"]:
         choices = tii_data["task"]["choices"]
+        # Process choices to decode Unicode
+        processed_choices = process_choices(choices)
         # Transform choices to simple array of strings
-        if isinstance(choices, list):
-            for choice in choices:
+        if isinstance(processed_choices, list):
+            for choice in processed_choices:
                 if isinstance(choice, dict) and "value" in choice:
                     options.append(choice["value"])
                 elif isinstance(choice, str):
@@ -390,7 +448,7 @@ def print_task_summary(tasks_fetched: List[Dict[str, Any]], tasks_created: List[
             # Fallback to text-based language detection
             question_text = ""
             if "task" in task and "text" in task["task"]:
-                question_text = task["task"]["text"]
+                question_text = decode_unicode_escapes(task["task"]["text"])
                 
                 # Simple language detection based on Arabic characters
                 if any('\u0600' <= char <= '\u06FF' for char in question_text):
@@ -459,7 +517,7 @@ def print_task_summary(tasks_fetched: List[Dict[str, Any]], tasks_created: List[
         else:
             # Fallback to text-based detection
             if "task" in sample_task and "text" in sample_task["task"]:
-                question_text = sample_task["task"]["text"]
+                question_text = decode_unicode_escapes(sample_task["task"]["text"])
                 if any('\u0600' <= char <= '\u06FF' for char in question_text):
                     sample_language = "ar"
                 elif any('\u0750' <= char <= '\u077F' for char in question_text):
@@ -473,7 +531,7 @@ def print_task_summary(tasks_fetched: List[Dict[str, Any]], tasks_created: List[
         
         # Show question text if available
         if "task" in sample_task and "text" in sample_task["task"]:
-            question = sample_task["task"]["text"]
+            question = decode_unicode_escapes(sample_task["task"]["text"])
             if len(question) > 100:
                 question = question[:100] + "..."
             print(f"  Question: {question}")
@@ -504,7 +562,7 @@ def print_task_summary(tasks_fetched: List[Dict[str, Any]], tasks_created: List[
         else:
             # Fallback to text-based detection
             if "task" in task and "text" in task["task"]:
-                question_text = task["task"]["text"]
+                question_text = decode_unicode_escapes(task["task"]["text"])
                 if any('\u0600' <= char <= '\u06FF' for char in question_text):
                     language = "ar"
                 elif any('\u0750' <= char <= '\u077F' for char in question_text):
