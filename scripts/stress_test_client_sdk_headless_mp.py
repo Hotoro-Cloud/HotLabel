@@ -270,19 +270,22 @@ def setup_test_environment():
     ]
     
     for scenario in scenarios:
-        task_data = {
-            "title": f"Headless Stress Test MP - {scenario.value}",
-            "description": f"Headless stress test task for {scenario.value} scenario (multiprocessing)",
+        base_data = {
+            "title": f"Stress Test - {scenario.value}",
+            "description": f"Stress test task for {scenario.value} scenario",
             "provider_id": provider_id,
-            "task_type": "vqa",
+            "task_type": "true-false",
             "category": "vqa",
             "complexity_level": 1,
-            "type": "true-false",
             "topic": scenario.value.replace("vqa_", "").replace("_consensus", ""),
             "agreement_threshold": 0.7,
             "confidence_threshold": 0.6,
             "status": "pending",
             "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
+        }
+        
+        task_data = {
+            **base_data,
             "content": {
                 "image_url": "https://s3-eu-north-1-derc-wmi-crowdlabel-production.s3.eu-north-1.amazonaws.com/tii_vqa_0whejvjm9blfgjb6.png",
                 "image_filename": "tii_vqa_0whejvjm9blfgjb6.png",

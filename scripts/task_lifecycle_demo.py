@@ -129,10 +129,9 @@ class TaskLifecycle:
                     "title": "VQA Task - Living Room",
                     "description": "Visual Question Answering task about objects in a living room",
                     "provider_id": self.provider_id,
-                    "task_type": "vqa",
+                    "task_type": "true-false",
                     "category": "vqa",
                     "complexity_level": 1,
-                    "type": "true-false",
                     "topic": "living-room",
                     "agreement_threshold": 0.7,  # 70% agreement required
                     "confidence_threshold": 0.6,  # 60% confidence required
@@ -163,10 +162,9 @@ class TaskLifecycle:
                     "title": "VQA Task - Fashion",
                     "description": "Visual Question Answering task about fashion items",
                     "provider_id": self.provider_id,
-                    "task_type": "vqa",
+                    "task_type": "true-false",
                     "category": "vqa",
                     "complexity_level": 1,
-                    "type": "true-false",
                     "topic": "fashion",
                     "agreement_threshold": 0.7,  # 70% agreement required
                     "confidence_threshold": 0.6,  # 60% confidence required
@@ -197,10 +195,9 @@ class TaskLifecycle:
                     "title": "VQA Task - Ambiguous",
                     "description": "Visual Question Answering task with ambiguous results (no consensus)",
                     "provider_id": self.provider_id,
-                    "task_type": "vqa",
+                    "task_type": "true-false",
                     "category": "vqa",
                     "complexity_level": 1,
-                    "type": "true-false",
                     "topic": "ambiguous",
                     "agreement_threshold": 0.7,  # 70% agreement required
                     "confidence_threshold": 0.6,  # 60% confidence required
