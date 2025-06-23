@@ -670,7 +670,7 @@ def retrieve_task_results(task_ids: List[str]) -> Dict[str, Any]:
                 results[task_id] = {
                     "status": status,
                     "results_count": results_count,
-                    "consensus_reached": status == "completed",
+                    "consensus_reached": status == "COMPLETED",
                     "final_answer": task_data.get("final_answer"),
                     "confidence": task_data.get("confidence"),
                     "agreement_rate": task_data.get("agreement_rate")
@@ -678,7 +678,7 @@ def retrieve_task_results(task_ids: List[str]) -> Dict[str, Any]:
                 
                 print(f"Task {task_id}: {status} ({results_count} results)")
                 
-                if status == "completed":
+                if status == "COMPLETED":
                     print(f"  Final Answer: {task_data.get('final_answer')}")
                     print(f"  Confidence: {task_data.get('confidence')}")
                     print(f"  Agreement Rate: {task_data.get('agreement_rate')}")
@@ -702,7 +702,7 @@ def setup_test_environment():
     print(f"Found {len(tasks)} existing tasks in the database")
     
     # Filter for pending tasks only
-    pending_tasks = [task for task in tasks if task.get("status") == "pending"]
+    pending_tasks = [task for task in tasks if task.get("status") == "PENDING"]
     print(f"Found {len(pending_tasks)} pending tasks available for testing")
     
     if not pending_tasks:

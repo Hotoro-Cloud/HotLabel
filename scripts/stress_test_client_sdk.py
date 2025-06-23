@@ -188,7 +188,7 @@ class HotLabelStressTest:
         print(f"Found {len(tasks)} existing tasks in the database")
         
         # Filter for pending tasks only
-        pending_tasks = [task for task in tasks if task.get("status") == "pending"]
+        pending_tasks = [task for task in tasks if task.get("status") == "PENDING"]
         print(f"Found {len(pending_tasks)} pending tasks available for testing")
         
         if not pending_tasks:
@@ -507,12 +507,12 @@ class HotLabelStressTest:
                     print(f"Task {task_id}: {status} ({results_count} results)")
                     
                     # Update metrics
-                    if status == "completed":
+                    if status == "COMPLETED":
                         self.system_metrics[0].tasks_completed += 1
                         self.system_metrics[0].consensus_reached_count += 1
-                    elif status == "in_progress":
+                    elif status == "IN_PROGRESS":
                         self.system_metrics[0].tasks_in_progress += 1
-                    elif status == "failed":
+                    elif status == "FAILED":
                         self.system_metrics[0].tasks_failed += 1
                         
             except Exception as e:

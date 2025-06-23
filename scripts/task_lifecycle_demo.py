@@ -102,7 +102,7 @@ class TaskLifecycle:
         print(f"Found {len(tasks)} existing tasks in the database")
         
         # Filter for pending tasks only
-        pending_tasks = [task for task in tasks if task.get("status") == "pending"]
+        pending_tasks = [task for task in tasks if task.get("status") == "PENDING"]
         print(f"Found {len(pending_tasks)} pending tasks available for assignment")
         
         # Select a subset of tasks for demonstration
@@ -290,7 +290,7 @@ class TaskLifecycle:
                     "status": status,
                     "assignments_count": len(task_data.get("assignments", [])),
                     "results_count": len(task_data.get("results", [])),
-                    "consensus_reached": status == "completed",
+                    "consensus_reached": status == "COMPLETED",
                     "final_answer": task_data.get("final_answer"),
                     "confidence": task_data.get("confidence"),
                     "agreement_rate": task_data.get("agreement_rate")

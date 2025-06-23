@@ -55,11 +55,11 @@ VERIFY_SSL = False
 # Task Service Configuration
 KONG_URL = "http://localhost:8000"  # Kong Gateway URL
 TASKS_BASE_URL = f"{KONG_URL}/api/v1/tasks"
-TASKS_API_KEY = "pk_ALSsWTET7QB9N1gmzf1MRLsFxS80SeNGUZK-rLl2dPo"  # Set your task service API key
+TASKS_API_KEY = "pk_9QbdCwEi2QTQTqVH-MgXP6M9mx2BF43C1y4BF3yG-DM"  # Set your task service API key
 TASKS_HEADERS = {"X-API-Key": TASKS_API_KEY}
 
 # Default provider ID (replace with your actual provider ID)
-DEFAULT_PROVIDER_ID = "dd329df6-f177-4d44-a287-0a9139726a8a"
+DEFAULT_PROVIDER_ID = "1acc64ba-7821-4a93-9101-6a02db5b09b3"
 
 # TII API Categories and Options (from latest documentation)
 TII_CATEGORIES = ["vqa"]  # Visual Question Analysis
@@ -348,7 +348,7 @@ def transform_tii_to_task_format(tii_data: Dict[str, Any], provider_id: str = No
         "tags": [],
         "golden_set": False,
         "expires_at": (datetime.utcnow() + timedelta(days=1)).isoformat(),
-        "status": "pending"
+        "status": "PENDING"
     }
     
     # Add TII metadata as additional fields (not in content)

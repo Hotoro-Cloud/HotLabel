@@ -289,7 +289,7 @@ def setup_test_environment():
     print(f"Found {len(tasks)} existing tasks in the database")
     
     # Filter for pending tasks only
-    assigned_tasks = [task for task in tasks if task.get("status") == "assigned"]
+    assigned_tasks = [task for task in tasks if task.get("status") == "ASSIGNED"]
     print(f"Found {len(assigned_tasks)} assigned tasks available for testing")
     
     if not assigned_tasks:
