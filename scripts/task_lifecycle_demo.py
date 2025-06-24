@@ -530,7 +530,7 @@ class DynamicTaskLifecycle:
                     "status": status,
                     "assignments_count": len(task_data.get("assignments", [])),
                     "results_count": len(task_data.get("results", [])),
-                    "consensus_reached": status == "COMPLETED",
+                    "consensus_reached": status == "completed",
                     "final_answer": task_data.get("final_answer"),
                     "confidence": task_data.get("confidence"),
                     "agreement_rate": task_data.get("agreement_rate"),
