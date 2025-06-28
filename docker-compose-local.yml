@@ -106,6 +106,7 @@ services:
       - QA_SERVICE_URL=http://qa:8003
       - PUBLISHER_SERVICE_URL=http://publishers:8004
       - USERS_SERVICE_URL=http://users:8005
+      - TII_MIDDLEWARE_URL=http://tii-middleware:8006
     ports:
       - "8002:8002"
     depends_on:
